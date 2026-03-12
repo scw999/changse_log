@@ -245,4 +245,5 @@ npm run build
 
 - [정보 구조](C:/Users/scw99/Documents/development/changselog/docs/information-architecture.md)
 - [데이터베이스 스키마](C:/Users/scw99/Documents/development/changselog/docs/database-schema.md)
+- [Internal Ingestion Spec](C:/Users/scw99/Documents/development/changselog/docs/internal-ingestion-spec.md)
 - [폴더 구조](C:/Users/scw99/Documents/development/changselog/docs/folder-structure.md)
