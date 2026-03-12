@@ -1,14 +1,14 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useState, useTransition } from "react";
-import { ImagePlus, Save, Trash2, Undo2, WandSparkles, X } from "lucide-react";
+import { useEffect, useState } from "react";
+import { ImagePlus, Save, Trash2, Undo2, X } from "lucide-react";
 
 import { PageHeader } from "@/components/ui/page-header";
 import { SectionCard } from "@/components/ui/section-card";
 import { CATEGORY_META, REVISIT_LABELS } from "@/lib/archive/config";
 import { useArchive } from "@/lib/archive/context";
-import { ArchiveRecord, CategoryKey, RevisitIntent, SourceType } from "@/lib/archive/types";
+import { ArchiveImage, ArchiveRecord, CategoryKey, RevisitIntent, SourceType } from "@/lib/archive/types";
 import {
   cloneRecord,
   createActivityDetails,
@@ -17,7 +17,7 @@ import {
   createPlaceDetails,
   createThoughtDetails,
   createWordDetails,
-  cx,
+  normalizeTags,
 } from "@/lib/archive/utils";
 
 const ratingOptions = ["0.5", "1", "1.5", "2", "2.5", "3", "3.5", "4", "4.5", "5"];
@@ -31,12 +31,12 @@ export function AdminEditor() {
     deleteRecord,
     resetRecords,
     uploadImages,
+    updateImages,
     removeImage,
   } = useArchive();
-  const [isPending, startTransition] = useTransition();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [draft, setDraft] = useState<ArchiveRecord>(() => createDraft("thoughts"));
-  const [message, setMessage] = useState<string>("");
+  const [message, setMessage] = useState("");
   const [isUploading, setIsUploading] = useState(false);
 
   useEffect(() => {
@@ -51,19 +51,36 @@ export function AdminEditor() {
   }, [records, selectedId]);
 
   function selectRecord(record: ArchiveRecord) {
-    startTransition(() => {
-      setSelectedId(record.id);
-      setDraft(cloneRecord(record));
-      setMessage("");
-    });
+    setSelectedId(record.id);
+    setDraft(cloneRecord(record));
+    setMessage("");
   }
 
   function createNew(category: CategoryKey = draft.category) {
-    startTransition(() => {
-      setSelectedId(null);
-      setDraft(createDraft(category));
-      setMessage("");
-    });
+    setSelectedId(null);
+    setDraft(createDraft(category));
+    setMessage("");
+  }
+
+  function updateDraft<Key extends keyof ArchiveRecord>(key: Key, value: ArchiveRecord[Key]) {
+    setDraft((current) => ({ ...current, [key]: value }));
+  }
+
+  function switchCategory(category: CategoryKey) {
+    setDraft((current) => ({
+      ...createDraft(category),
+      id: current.id || crypto.randomUUID(),
+      title: current.title,
+      body: current.body,
+      summary: current.summary,
+      notes: current.notes,
+      tags: current.tags,
+      importance: current.importance,
+      sourceType: current.sourceType,
+      createdAt: current.createdAt,
+      eventDate: current.eventDate,
+      images: current.images ?? [],
+    }));
   }
 
   async function saveDraft() {
@@ -73,6 +90,7 @@ export function AdminEditor() {
         id: draft.id || crypto.randomUUID(),
         createdAt: draft.createdAt || new Date().toISOString(),
         eventDate: draft.eventDate || new Date().toISOString().slice(0, 10),
+        tags: normalizeTags(draft.tags),
         images: draft.images ?? [],
       };
 
@@ -122,17 +140,13 @@ export function AdminEditor() {
         images: draft.images ?? [],
       };
 
-      if (!draft.id) {
-        setDraft(nextDraft);
-      }
-
       await upsertRecord(nextDraft);
-
       const uploaded = await uploadImages(recordId, Array.from(files));
+
       setDraft((current) => ({
         ...current,
         id: recordId,
-        images: [...(current.images ?? []), ...uploaded].sort((left, right) => left.sortOrder - right.sortOrder),
+        images: [...(current.images ?? []), ...uploaded].sort((a, b) => a.sortOrder - b.sortOrder),
       }));
       setMessage(`${uploaded.length}개의 이미지를 업로드했습니다.`);
     } catch (error) {
@@ -159,53 +173,76 @@ export function AdminEditor() {
     }
   }
 
-  function updateDraft<Key extends keyof ArchiveRecord>(key: Key, value: ArchiveRecord[Key]) {
-    setDraft((current) => ({ ...current, [key]: value }));
+  function updateImage(imageId: string, patch: Partial<ArchiveImage>) {
+    setDraft((current) => ({
+      ...current,
+      images: (current.images ?? []).map((image) =>
+        image.id === imageId ? { ...image, ...patch } : image,
+      ),
+    }));
   }
 
-  function switchCategory(category: CategoryKey) {
-    setDraft((current) => ({
-      ...createDraft(category),
-      id: current.id || crypto.randomUUID(),
-      title: current.title,
-      body: current.body,
-      summary: current.summary,
-      notes: current.notes,
-      tags: current.tags,
-      importance: current.importance,
-      sourceType: current.sourceType,
-      createdAt: current.createdAt,
-      eventDate: current.eventDate,
-      images: current.images ?? [],
-    }));
+  function moveImage(imageId: string, direction: "left" | "right") {
+    setDraft((current) => {
+      const images = [...(current.images ?? [])];
+      const index = images.findIndex((image) => image.id === imageId);
+
+      if (index < 0) {
+        return current;
+      }
+
+      const nextIndex = direction === "left" ? index - 1 : index + 1;
+      if (nextIndex < 0 || nextIndex >= images.length) {
+        return current;
+      }
+
+      const [target] = images.splice(index, 1);
+      images.splice(nextIndex, 0, target);
+
+      return {
+        ...current,
+        images: images.map((image, sortIndex) => ({ ...image, sortOrder: sortIndex })),
+      };
+    });
+  }
+
+  async function saveImages() {
+    if (!draft.id || !draft.images) {
+      return;
+    }
+
+    try {
+      await updateImages(draft.id, draft.images);
+      setMessage("이미지 메타데이터와 정렬 순서를 저장했습니다.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "이미지 정보 저장 중 오류가 발생했습니다.");
+    }
   }
 
   return (
     <div className="space-y-5">
       <PageHeader
         eyebrow="Admin / Record Editor"
-        title="보호된 관리자 편집기"
-        description="로그인한 사용자만 구조화된 기록을 만들고 수정할 수 있습니다. 이미지 업로드는 Supabase Storage에 저장됩니다."
+        title="관리자 기록 편집기"
+        description="개인 기록을 직접 편집하고, 이미지와 세부 메타데이터를 함께 관리합니다."
       >
         <div className="rounded-[28px] border border-white/80 bg-white/80 px-4 py-4 shadow-sm">
           <p className="text-xs uppercase tracking-[0.3em] text-stone-500">Storage Mode</p>
           <p className="mt-2 text-sm leading-6 text-stone-700">
             {isRemote
-              ? "현재 로그인된 계정의 Supabase 기록을 편집 중입니다."
-              : "현재는 로컬 모드입니다. 로그인하면 개인 기록과 이미지가 Supabase에 저장됩니다."}
+              ? "현재 로그인 계정의 Supabase 데이터를 편집 중입니다."
+              : "현재는 로컬 모드입니다. 로그인하면 개인 Supabase 기록과 이미지를 편집합니다."}
           </p>
           {userEmail ? <p className="mt-2 text-xs text-stone-500">{userEmail}</p> : null}
         </div>
       </PageHeader>
 
-      {message ? (
-        <div className="soft-panel px-4 py-4 text-sm text-stone-700">{message}</div>
-      ) : null}
+      {message ? <div className="soft-panel px-4 py-4 text-sm text-stone-700">{message}</div> : null}
 
-      <div className="grid gap-5 xl:grid-cols-[0.8fr_1.2fr]">
+      <div className="grid gap-5 xl:grid-cols-[0.78fr_1.22fr]">
         <SectionCard
           title="기록 목록"
-          description="수정할 기록을 선택하거나 새 초안을 시작하세요."
+          description="기존 기록을 선택하거나 새 기록 초안을 시작하세요."
           action={
             <button
               type="button"
@@ -222,12 +259,11 @@ export function AdminEditor() {
                 key={record.id}
                 type="button"
                 onClick={() => selectRecord(record)}
-                className={cx(
-                  "w-full rounded-[22px] border px-4 py-4 text-left transition",
+                className={`w-full rounded-[22px] border px-4 py-4 text-left transition ${
                   selectedId === record.id
                     ? "border-stone-900 bg-stone-900 text-white shadow-lg shadow-stone-900/10"
-                    : "border-white/80 bg-white/80 text-stone-700 hover:bg-white",
-                )}
+                    : "border-white/80 bg-white/80 text-stone-700 hover:bg-white"
+                }`}
               >
                 <p className="text-xs uppercase tracking-[0.28em] opacity-70">{record.subcategory}</p>
                 <p className="mt-2 font-medium leading-6">{record.title}</p>
@@ -237,152 +273,172 @@ export function AdminEditor() {
           </div>
 
           {!isRemote ? (
-            <div className="mt-4 flex flex-wrap gap-2">
+            <div className="mt-4">
               <button
                 type="button"
                 onClick={() => void resetRecords()}
                 className="inline-flex items-center gap-2 rounded-full border border-stone-200 bg-white px-4 py-2 text-sm text-stone-700"
               >
                 <Undo2 className="h-4 w-4" />
-                기본 데이터 복원
+                시드 데이터 복원
               </button>
             </div>
           ) : null}
         </SectionCard>
 
-        <SectionCard
-          title={draft.id ? "기록 수정" : "새 기록 작성"}
-          description="공통 필드와 카테고리별 구조 필드를 채워 저장합니다."
-          action={
-            <div className="rounded-full bg-stone-900 px-3 py-2 text-xs text-white">
-              {isPending ? "전환 중..." : draft.id ? "편집 중" : "작성 중"}
+        <div className="space-y-5">
+          <SectionCard
+            title={draft.id ? "기록 편집" : "새 기록"}
+            description="공통 필드와 카테고리별 세부 필드를 채워 저장합니다."
+          >
+            <div className="grid gap-4 md:grid-cols-2">
+              <Field label="카테고리">
+                <select
+                  value={draft.category}
+                  onChange={(event) => switchCategory(event.target.value as CategoryKey)}
+                  className="field"
+                >
+                  {Object.entries(CATEGORY_META).map(([key, meta]) => (
+                    <option key={key} value={key}>
+                      {meta.label}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+
+              <Field label="세부 유형">
+                <select
+                  value={draft.subcategory}
+                  onChange={(event) => updateDraft("subcategory", event.target.value)}
+                  className="field"
+                >
+                  {CATEGORY_META[draft.category].subcategories.map((subcategory) => (
+                    <option key={subcategory} value={subcategory}>
+                      {subcategory}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+
+              <Field label="제목" className="md:col-span-2">
+                <input
+                  value={draft.title}
+                  onChange={(event) => updateDraft("title", event.target.value)}
+                  className="field"
+                  placeholder="기록 제목"
+                />
+              </Field>
+
+              <Field label="요약" className="md:col-span-2">
+                <textarea
+                  value={draft.summary}
+                  onChange={(event) => updateDraft("summary", event.target.value)}
+                  className="field min-h-24"
+                  placeholder="한두 문장 요약"
+                />
+              </Field>
+
+              <Field label="본문" className="md:col-span-2">
+                <textarea
+                  value={draft.body}
+                  onChange={(event) => updateDraft("body", event.target.value)}
+                  className="field min-h-40"
+                  placeholder="구조화된 본문"
+                />
+              </Field>
+
+              <Field label="태그">
+                <input
+                  value={draft.tags.join(", ")}
+                  onChange={(event) => updateDraft("tags", parseList(event.target.value))}
+                  className="field"
+                  placeholder="기록, 장소, 회고"
+                />
+              </Field>
+
+              <Field label="이벤트 날짜">
+                <input
+                  type="date"
+                  value={draft.eventDate?.slice(0, 10) ?? ""}
+                  onChange={(event) => updateDraft("eventDate", event.target.value)}
+                  className="field"
+                />
+              </Field>
+
+              <Field label="중요도">
+                <select
+                  value={String(draft.importance)}
+                  onChange={(event) => updateDraft("importance", Number(event.target.value))}
+                  className="field"
+                >
+                  {[1, 2, 3, 4, 5].map((value) => (
+                    <option key={value} value={value}>
+                      {value}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+
+              <Field label="입력 출처">
+                <select
+                  value={draft.sourceType}
+                  onChange={(event) => updateDraft("sourceType", event.target.value as SourceType)}
+                  className="field"
+                >
+                  <option value="assistant">창세봇 저장</option>
+                  <option value="telegram">텔레그램</option>
+                  <option value="manual">수동 입력</option>
+                  <option value="imported">가져오기</option>
+                </select>
+              </Field>
+
+              <Field label="보조 메모" className="md:col-span-2">
+                <textarea
+                  value={draft.notes ?? ""}
+                  onChange={(event) => updateDraft("notes", event.target.value)}
+                  className="field min-h-24"
+                />
+              </Field>
             </div>
-          }
-        >
-          <div className="grid gap-4 md:grid-cols-2">
-            <Field label="카테고리">
-              <select
-                value={draft.category}
-                onChange={(event) => switchCategory(event.target.value as CategoryKey)}
-                className="field"
+
+            <div className="mt-6">
+              <TypeFields draft={draft} setDraft={setDraft} />
+            </div>
+
+            <div className="mt-6 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => void saveDraft()}
+                className="inline-flex items-center gap-2 rounded-full bg-stone-900 px-5 py-3 text-sm text-white"
               >
-                {Object.entries(CATEGORY_META).map(([key, meta]) => (
-                  <option key={key} value={key}>
-                    {meta.label}
-                  </option>
-                ))}
-              </select>
-            </Field>
-
-            <Field label="세부 유형">
-              <select
-                value={draft.subcategory}
-                onChange={(event) => updateDraft("subcategory", event.target.value)}
-                className="field"
+                <Save className="h-4 w-4" />
+                저장하기
+              </button>
+              <button
+                type="button"
+                onClick={() => void deleteDraftRecord()}
+                className="inline-flex items-center gap-2 rounded-full border border-stone-200 bg-white px-5 py-3 text-sm text-stone-700"
               >
-                {CATEGORY_META[draft.category].subcategories.map((subcategory) => (
-                  <option key={subcategory} value={subcategory}>
-                    {subcategory}
-                  </option>
-                ))}
-              </select>
-            </Field>
-
-            <Field label="제목" className="md:col-span-2">
-              <input
-                value={draft.title}
-                onChange={(event) => updateDraft("title", event.target.value)}
-                className="field"
-                placeholder="기록 제목"
-              />
-            </Field>
-
-            <Field label="요약" className="md:col-span-2">
-              <textarea
-                value={draft.summary}
-                onChange={(event) => updateDraft("summary", event.target.value)}
-                className="field min-h-24"
-                placeholder="한두 문장으로 요약"
-              />
-            </Field>
-
-            <Field label="본문" className="md:col-span-2">
-              <textarea
-                value={draft.body}
-                onChange={(event) => updateDraft("body", event.target.value)}
-                className="field min-h-40"
-                placeholder="구조화된 본문"
-              />
-            </Field>
-
-            <Field label="태그">
-              <input
-                value={draft.tags.join(", ")}
-                onChange={(event) => updateDraft("tags", parseList(event.target.value))}
-                className="field"
-                placeholder="기록, 회고, 장소"
-              />
-            </Field>
-
-            <Field label="이벤트 날짜">
-              <input
-                type="date"
-                value={draft.eventDate?.slice(0, 10) ?? ""}
-                onChange={(event) => updateDraft("eventDate", event.target.value)}
-                className="field"
-              />
-            </Field>
-
-            <Field label="중요도">
-              <select
-                value={String(draft.importance)}
-                onChange={(event) => updateDraft("importance", Number(event.target.value))}
-                className="field"
-              >
-                {[1, 2, 3, 4, 5].map((value) => (
-                  <option key={value} value={value}>
-                    {value}
-                  </option>
-                ))}
-              </select>
-            </Field>
-
-            <Field label="저장 출처">
-              <select
-                value={draft.sourceType}
-                onChange={(event) => updateDraft("sourceType", event.target.value as SourceType)}
-                className="field"
-              >
-                <option value="telegram">텔레그램</option>
-                <option value="manual">수동 입력</option>
-                <option value="imported">가져오기</option>
-              </select>
-            </Field>
-
-            <Field label="보조 노트" className="md:col-span-2">
-              <textarea
-                value={draft.notes ?? ""}
-                onChange={(event) => updateDraft("notes", event.target.value)}
-                className="field min-h-24"
-              />
-            </Field>
-          </div>
-
-          <div className="mt-6">
-            <TypeFields draft={draft} setDraft={setDraft} />
-          </div>
+                <Trash2 className="h-4 w-4" />
+                삭제하기
+              </button>
+            </div>
+          </SectionCard>
 
           <SectionCard
             title="이미지"
             description={
               isRemote
-                ? "사진이나 스크린샷을 기록에 연결하면 상세 페이지에서 함께 확인할 수 있습니다."
+                ? "기록별 이미지를 업로드하고 캡션, alt text, 정렬 순서를 함께 저장합니다."
                 : "이미지 업로드는 로그인 후 Supabase 모드에서 사용할 수 있습니다."
             }
-            className="mt-6"
           >
             <div className="space-y-4">
-              <label className={cx("inline-flex cursor-pointer items-center gap-2 rounded-full border px-4 py-3 text-sm", isRemote ? "border-stone-200 bg-white text-stone-700" : "border-stone-200 bg-stone-100 text-stone-400")}>
+              <label
+                className={`inline-flex cursor-pointer items-center gap-2 rounded-full border px-4 py-3 text-sm ${
+                  isRemote ? "border-stone-200 bg-white text-stone-700" : "border-stone-200 bg-stone-100 text-stone-400"
+                }`}
+              >
                 <ImagePlus className="h-4 w-4" />
                 이미지 추가
                 <input
@@ -410,19 +466,46 @@ export function AdminEditor() {
                           sizes="(max-width: 768px) 100vw, 50vw"
                         />
                       </div>
-                      <div className="mt-3 flex items-center justify-between gap-3">
-                        <p className="truncate text-sm text-stone-600">
-                          {image.caption || "설명 없음"}
-                        </p>
-                        {isRemote ? (
+
+                      <div className="mt-3 space-y-3">
+                        <input
+                          value={image.caption ?? ""}
+                          onChange={(event) => updateImage(image.id, { caption: event.target.value })}
+                          className="field"
+                          placeholder="캡션"
+                        />
+                        <input
+                          value={image.altText ?? ""}
+                          onChange={(event) => updateImage(image.id, { altText: event.target.value })}
+                          className="field"
+                          placeholder="alt text"
+                        />
+
+                        <div className="flex flex-wrap gap-2">
                           <button
                             type="button"
-                            onClick={() => void handleRemoveImage(image.id)}
-                            className="rounded-full border border-stone-200 bg-white p-2 text-stone-500"
+                            onClick={() => moveImage(image.id, "left")}
+                            className="rounded-full border border-stone-200 bg-white px-3 py-2 text-xs text-stone-600"
                           >
-                            <X className="h-4 w-4" />
+                            왼쪽
                           </button>
-                        ) : null}
+                          <button
+                            type="button"
+                            onClick={() => moveImage(image.id, "right")}
+                            className="rounded-full border border-stone-200 bg-white px-3 py-2 text-xs text-stone-600"
+                          >
+                            오른쪽
+                          </button>
+                          {isRemote ? (
+                            <button
+                              type="button"
+                              onClick={() => void handleRemoveImage(image.id)}
+                              className="rounded-full border border-stone-200 bg-white p-2 text-stone-500"
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          ) : null}
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -432,36 +515,19 @@ export function AdminEditor() {
                   아직 연결된 이미지가 없습니다.
                 </div>
               )}
+
+              {draft.images && draft.images.length > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => void saveImages()}
+                  className="rounded-full border border-stone-200 bg-white px-4 py-3 text-sm text-stone-700"
+                >
+                  이미지 정보 저장
+                </button>
+              ) : null}
             </div>
           </SectionCard>
-
-          <div className="mt-6 flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => void saveDraft()}
-              className="inline-flex items-center gap-2 rounded-full bg-stone-900 px-5 py-3 text-sm text-white"
-            >
-              <Save className="h-4 w-4" />
-              저장하기
-            </button>
-            <button
-              type="button"
-              onClick={() => void deleteDraftRecord()}
-              className="inline-flex items-center gap-2 rounded-full border border-stone-200 bg-white px-5 py-3 text-sm text-stone-700"
-            >
-              <Trash2 className="h-4 w-4" />
-              삭제하기
-            </button>
-            <button
-              type="button"
-              onClick={() => createNew(draft.category)}
-              className="inline-flex items-center gap-2 rounded-full border border-stone-200 bg-white px-5 py-3 text-sm text-stone-700"
-            >
-              <WandSparkles className="h-4 w-4" />
-              새 초안
-            </button>
-          </div>
-        </SectionCard>
+        </div>
       </div>
     </div>
   );
@@ -508,7 +574,7 @@ function TypeFields({
     const detail = draft.thought ?? createThoughtDetails();
 
     return (
-      <SectionCard title="생각 상세 필드" description="리플렉션과 메모용 구조">
+      <SectionCard title="생각 상세 필드" description="리플렉션과 메모 구조">
         <div className="grid gap-4 md:grid-cols-2">
           <Field label="생각 유형">
             <input value={detail.thoughtType} onChange={(e) => updateThought({ thoughtType: e.target.value })} className="field" />
@@ -516,7 +582,7 @@ function TypeFields({
           <Field label="한 줄 생각">
             <input value={detail.oneLineThought} onChange={(e) => updateThought({ oneLineThought: e.target.value })} className="field" />
           </Field>
-          <Field label="확장 노트" className="md:col-span-2">
+          <Field label="확장 메모" className="md:col-span-2">
             <textarea value={detail.expandedNote} onChange={(e) => updateThought({ expandedNote: e.target.value })} className="field min-h-28" />
           </Field>
           <ToggleField label="액션 필요" checked={detail.actionNeeded} onChange={(checked) => updateThought({ actionNeeded: checked })} />
@@ -570,7 +636,7 @@ function TypeFields({
               ))}
             </select>
           </Field>
-          <Field label="재감상 의도">
+          <Field label="재방문 의도">
             <select value={detail.revisitIntent} onChange={(e) => updateContent({ revisitIntent: e.target.value as RevisitIntent })} className="field">
               {Object.entries(REVISIT_LABELS).map(([value, label]) => (
                 <option key={value} value={value}>
@@ -582,13 +648,13 @@ function TypeFields({
           <Field label="한 줄 리뷰" className="md:col-span-2">
             <textarea value={detail.oneLineReview} onChange={(e) => updateContent({ oneLineReview: e.target.value })} className="field min-h-24" />
           </Field>
-          <Field label="기억 포인트 (쉼표 구분)" className="md:col-span-2">
+          <Field label="기억 포인트" className="md:col-span-2">
             <textarea value={detail.memorablePoints.join(", ")} onChange={(e) => updateContent({ memorablePoints: parseList(e.target.value) })} className="field min-h-24" />
           </Field>
-          <Field label="아쉬운 점 (쉼표 구분)" className="md:col-span-2">
+          <Field label="아쉬운 점" className="md:col-span-2">
             <textarea value={(detail.weakPoints ?? []).join(", ")} onChange={(e) => updateContent({ weakPoints: parseList(e.target.value) })} className="field min-h-24" />
           </Field>
-          <Field label="인상 문장" className="md:col-span-2">
+          <Field label="기억 문장" className="md:col-span-2">
             <textarea value={detail.memorableQuote ?? ""} onChange={(e) => updateContent({ memorableQuote: e.target.value })} className="field min-h-24" />
           </Field>
         </div>
@@ -638,7 +704,7 @@ function TypeFields({
               ))}
             </select>
           </Field>
-          <Field label="동행">
+          <Field label="함께한 사람">
             <input value={detail.withWhom ?? ""} onChange={(e) => updatePlace({ withWhom: e.target.value })} className="field" />
           </Field>
           <Field label="분위기 메모" className="md:col-span-2">
@@ -655,7 +721,7 @@ function TypeFields({
   const detail = draft.activity ?? createActivityDetails();
 
   return (
-    <SectionCard title="활동 상세 필드" description="운동, 러닝, 등산, 산책 구조">
+    <SectionCard title="활동 상세 필드" description="운동, 산책, 트래킹 기록 구조">
       <div className="grid gap-4 md:grid-cols-2">
         <Field label="활동 유형">
           <input value={detail.activityType} onChange={(e) => updateActivity({ activityType: e.target.value })} className="field" />

@@ -169,6 +169,30 @@ export async function deleteRemoteImage(
   }
 }
 
+export async function syncRemoteRecordImages(
+  client: SupabaseClient,
+  user: User,
+  recordId: string,
+  images: ArchiveImage[],
+) {
+  for (const image of images) {
+    const { error } = await client
+      .from(IMAGES_TABLE)
+      .update({
+        caption: image.caption ?? "",
+        alt_text: image.altText ?? "",
+        sort_order: image.sortOrder,
+      })
+      .eq("id", image.id)
+      .eq("record_id", recordId)
+      .eq("owner_id", user.id);
+
+    if (error) {
+      throw error;
+    }
+  }
+}
+
 function recordToRow(ownerId: string, record: ArchiveRecord) {
   return {
     id: record.id,

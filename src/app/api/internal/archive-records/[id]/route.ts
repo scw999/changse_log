@@ -2,16 +2,15 @@ import { NextResponse } from "next/server";
 
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { isInternalIngestConfigured } from "@/lib/supabase/env";
-import {
-  isAuthorizedInternalRequest,
-  resolveAllowedOwnerId,
-  serializeInternalError,
-} from "@/lib/internal-auth";
-import { buildInternalArchiveInsert, parseInternalIngestPayload } from "@/lib/internal-ingest";
+import { getOwnedArchiveRecord, isAuthorizedInternalRequest, serializeInternalError } from "@/lib/internal-auth";
+import { parseInternalRecordPatch, serializeArchiveRecord } from "@/lib/internal-record-update";
 
 const ARCHIVE_RECORDS_TABLE = "archive_records";
 
-export async function POST(request: Request) {
+export async function PATCH(
+  request: Request,
+  context: Readonly<{ params: Promise<{ id: string }> }>,
+) {
   if (!isInternalIngestConfigured()) {
     return NextResponse.json({ error: "internal_ingest_not_configured" }, { status: 503 });
   }
@@ -21,14 +20,21 @@ export async function POST(request: Request) {
   }
 
   try {
+    const { id } = await context.params;
     const body = await request.json();
-    const payload = parseInternalIngestPayload(body);
-    const ownerId = await resolveAllowedOwnerId();
-    const admin = createSupabaseAdminClient();
+    const patch = parseInternalRecordPatch(body);
+    const { ownerId, record } = await getOwnedArchiveRecord(id);
 
+    if (!record) {
+      return NextResponse.json({ error: "record_not_found" }, { status: 404 });
+    }
+
+    const admin = createSupabaseAdminClient();
     const { data, error } = await admin
       .from(ARCHIVE_RECORDS_TABLE)
-      .insert(buildInternalArchiveInsert(ownerId, payload))
+      .update(serializeArchiveRecord(ownerId, record, patch))
+      .eq("id", id)
+      .eq("owner_id", ownerId)
       .select("id, title, source_type, created_at")
       .single();
 
@@ -42,18 +48,14 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     const details = serializeInternalError(error);
-    console.error("internal archive ingest failed", details);
+    console.error("internal archive update failed", details);
 
     return NextResponse.json(
       {
-        error: error instanceof Error ? error.message : "internal_ingest_failed",
+        error: error instanceof Error ? error.message : "internal_record_update_failed",
         details,
       },
       { status: 400 },
     );
   }
-}
-
-export function GET() {
-  return NextResponse.json({ error: "method_not_allowed" }, { status: 405 });
 }

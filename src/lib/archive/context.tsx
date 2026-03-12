@@ -4,12 +4,19 @@ import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import type { AuthChangeEvent, Session, User } from "@supabase/supabase-js";
 
 import { seedRecords } from "@/lib/archive/mock-data";
-import { fetchRemoteArchiveRecords, deleteRemoteImage, deleteRemoteArchiveRecord, upsertRemoteArchiveRecord, uploadRemoteRecordImages } from "@/lib/archive/supabase-store";
+import {
+  deleteRemoteArchiveRecord,
+  deleteRemoteImage,
+  fetchRemoteArchiveRecords,
+  syncRemoteRecordImages,
+  upsertRemoteArchiveRecord,
+  uploadRemoteRecordImages,
+} from "@/lib/archive/supabase-store";
 import { readRecordsFromStorage, writeRecordsToStorage } from "@/lib/archive/storage";
 import { ArchiveContextValue, ArchiveRecord } from "@/lib/archive/types";
+import { sortRecords } from "@/lib/archive/utils";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
-import { sortRecords } from "@/lib/archive/utils";
 
 const ArchiveContext = createContext<ArchiveContextValue | null>(null);
 
@@ -90,33 +97,35 @@ export function ArchiveProvider({ children }: Readonly<{ children: React.ReactNo
     }
 
     const client = createSupabaseBrowserClient();
-    const { data: subscription } = client.auth.onAuthStateChange((_event: AuthChangeEvent, session: Session | null) => {
-      const nextUser = session?.user ?? null;
-      setUser(nextUser);
+    const { data: subscription } = client.auth.onAuthStateChange(
+      (_event: AuthChangeEvent, session: Session | null) => {
+        const nextUser = session?.user ?? null;
+        setUser(nextUser);
 
-      if (!nextUser) {
-        setRecords(createLocalSnapshot());
-        setIsRemote(false);
-        setIsReady(true);
-        return;
-      }
+        if (!nextUser) {
+          setRecords(createLocalSnapshot());
+          setIsRemote(false);
+          setIsReady(true);
+          return;
+        }
 
-      void fetchRemoteArchiveRecords(client, nextUser)
-        .then((remoteRecords) => {
-          if (!ignore) {
-            setRecords(remoteRecords);
-            setIsRemote(true);
-            setIsReady(true);
-          }
-        })
-        .catch(() => {
-          if (!ignore) {
-            setRecords(createLocalSnapshot());
-            setIsRemote(false);
-            setIsReady(true);
-          }
-        });
-    });
+        void fetchRemoteArchiveRecords(client, nextUser)
+          .then((remoteRecords) => {
+            if (!ignore) {
+              setRecords(remoteRecords);
+              setIsRemote(true);
+              setIsReady(true);
+            }
+          })
+          .catch(() => {
+            if (!ignore) {
+              setRecords(createLocalSnapshot());
+              setIsRemote(false);
+              setIsReady(true);
+            }
+          });
+      },
+    );
 
     return () => {
       ignore = true;
@@ -171,12 +180,11 @@ export function ArchiveProvider({ children }: Readonly<{ children: React.ReactNo
         setLocalRecords(records.filter((record) => record.id !== recordId));
       },
       resetRecords: async () => {
-        const seed = createSeedSnapshot();
-        setLocalRecords(seed);
+        setLocalRecords(createSeedSnapshot());
       },
       uploadImages: async (recordId, files) => {
         if (!user || !isSupabaseConfigured()) {
-          throw new Error("이미지 업로드는 로그인 후 사용할 수 있습니다.");
+          throw new Error("이미지 업로드는 로그인 후 Supabase 모드에서만 사용할 수 있습니다.");
         }
 
         const client = createSupabaseBrowserClient();
@@ -186,9 +194,23 @@ export function ArchiveProvider({ children }: Readonly<{ children: React.ReactNo
         await refreshRemote(user);
         return uploaded;
       },
+      updateImages: async (recordId, images) => {
+        if (user && isSupabaseConfigured()) {
+          const client = createSupabaseBrowserClient();
+          await syncRemoteRecordImages(client, user, recordId, images);
+          await refreshRemote(user);
+          return;
+        }
+
+        setLocalRecords(
+          records.map((record) =>
+            record.id === recordId ? { ...record, images } : record,
+          ),
+        );
+      },
       removeImage: async (recordId, imageId) => {
         if (!user || !isSupabaseConfigured()) {
-          throw new Error("이미지 삭제는 로그인 후 사용할 수 있습니다.");
+          throw new Error("이미지 삭제는 로그인 후 Supabase 모드에서만 사용할 수 있습니다.");
         }
 
         const targetRecord = records.find((record) => record.id === recordId);
