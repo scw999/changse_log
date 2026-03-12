@@ -1,18 +1,27 @@
-# 창세록 Database Schema Proposal
+# 창세록 Database Schema
 
-## Current Practical Schema
+## 현재 구조
 
-Phase 2부터는 실제 앱 저장소를 Supabase로 연결한다. MVP의 핵심은 빠른 CRUD, 이미지 업로드, 개인 데이터 보호이므로 아래 구조를 채택한다.
+창세록은 지금 단계에서 `private personal admin app`을 기준으로 설계되어 있습니다.  
+웹앱은 개인 아카이브 탐색과 관리자 편집에 집중하고, Supabase는 인증, 데이터 저장, 이미지 저장을 담당합니다.
 
-## Core Tables
+핵심 원칙은 세 가지입니다.
+
+- 모든 아카이브 데이터는 `owner_id` 기준으로 분리합니다.
+- 관리자 접근은 앱 레벨에서 `ALLOWED_ADMIN_EMAIL`로 한 번 더 제한합니다.
+- 향후 Telegram 수집 흐름을 붙일 수 있도록 초안용 테이블을 미리 준비합니다.
+
+## 핵심 테이블
 
 ### `archive_records`
 
-- 공통 메타데이터와 카테고리별 상세 JSON을 함께 저장
-- `owner_id` 기반으로 개인 데이터 분리
-- 현재 UI는 전체 레코드를 가져온 뒤 클라이언트에서 필터링한다
+개인 기록의 메인 테이블입니다.
 
-핵심 컬럼:
+- 공통 필드와 분류 필드를 저장합니다.
+- 생각, 단어, 콘텐츠, 장소, 활동 데이터를 하나의 흐름으로 다룹니다.
+- 세부 타입별 데이터는 `details jsonb`에 저장합니다.
+
+주요 컬럼:
 
 - `id uuid primary key`
 - `owner_id uuid references auth.users(id)`
@@ -31,10 +40,12 @@ Phase 2부터는 실제 앱 저장소를 Supabase로 연결한다. MVP의 핵심
 
 ### `archive_record_images`
 
-- 한 기록에 여러 이미지를 연결하는 테이블
-- 실제 파일은 Supabase Storage에 저장하고, DB에는 경로와 메타데이터만 둔다
+기록별 이미지 메타데이터 테이블입니다.
 
-핵심 컬럼:
+- 실제 파일은 Supabase Storage에 저장합니다.
+- DB에는 파일 경로, 캡션, 정렬 순서만 저장합니다.
+
+주요 컬럼:
 
 - `id uuid primary key`
 - `record_id uuid references archive_records(id)`
@@ -45,21 +56,98 @@ Phase 2부터는 실제 앱 저장소를 Supabase로 연결한다. MVP의 핵심
 - `sort_order integer`
 - `created_at timestamptz`
 
+## Telegram 준비 테이블
+
+아직 Telegram bot / webhook은 구현하지 않았지만, 다음 단계 준비를 위해 아래 테이블을 추가했습니다.
+
+### `telegram_identities`
+
+앱 사용자와 Telegram 사용자를 연결합니다.
+
+- `owner_id`와 `telegram_user_id`를 매핑합니다.
+- 검증 여부와 연결 상태를 관리합니다.
+
+주요 컬럼:
+
+- `owner_id uuid`
+- `telegram_user_id bigint`
+- `telegram_username text`
+- `telegram_chat_id bigint`
+- `status text`
+- `verified_at timestamptz`
+
+### `inbox_messages`
+
+Telegram에서 들어온 원문 메시지를 저장합니다.
+
+- 러프 노트를 그대로 저장합니다.
+- 나중에 OpenAI 구조화 처리 전 원본 기록 보관소로 씁니다.
+
+주요 컬럼:
+
+- `owner_id uuid`
+- `telegram_identity_id uuid`
+- `source_type text`
+- `external_message_id text`
+- `raw_text text`
+- `attachments jsonb`
+- `received_at timestamptz`
+- `processed_at timestamptz`
+- `status text`
+- `metadata jsonb`
+
+### `draft_records`
+
+창세봇이 구조화한 초안 기록을 저장합니다.
+
+- 아직 최종 저장 전 상태를 관리합니다.
+- 사용자 승인 후 `archive_records`로 반영할 수 있게 준비합니다.
+
+주요 컬럼:
+
+- `owner_id uuid`
+- `inbox_message_id uuid`
+- `archive_record_id uuid`
+- `status text`
+- `category text`
+- `subcategory text`
+- `title text`
+- `body text`
+- `summary text`
+- `tags text[]`
+- `structured_payload jsonb`
+- `assistant_note text`
+
 ## Storage
 
 - 버킷 이름: `record-images`
 - 권장 경로: `user_id/record_id/file-name`
-- 버킷은 `private`
-- 화면 렌더링은 signed URL 사용
+- 버킷 공개 여부: `private`
+- 상세 화면 렌더링: signed URL 사용
 
-## Security Model
+## 보안 모델
 
-- `archive_records`와 `archive_record_images`는 모두 RLS 활성화
-- 로그인한 사용자만 자기 레코드 CRUD 가능
-- Storage도 첫 폴더가 `auth.uid()` 인 경로만 접근 가능
+### 앱 레벨
 
-## Why This Shape
+- `/admin`은 로그인만으로는 부족합니다.
+- `ALLOWED_ADMIN_EMAIL`과 로그인 사용자 이메일이 일치할 때만 관리자 편집이 허용됩니다.
+- 일치하지 않으면 접근 거부 페이지로 이동합니다.
 
-- Phase 1의 구조화된 타입 모델을 유지하면서 구현 복잡도를 과도하게 올리지 않는다
-- 이미지 기능을 빠르게 붙일 수 있다
-- 향후 필요하면 `details jsonb`를 세부 정규화 테이블로 분리할 수 있다
+### DB 레벨
+
+- `archive_records`
+- `archive_record_images`
+- `telegram_identities`
+- `inbox_messages`
+- `draft_records`
+
+위 테이블은 모두 RLS가 켜져 있습니다.
+
+- 로그인한 사용자는 자기 `owner_id` 데이터만 조회/수정/삭제할 수 있습니다.
+- Storage도 `auth.uid()` 기준 경로만 접근할 수 있습니다.
+
+## 이 구조를 선택한 이유
+
+- 지금은 개인 관리자 앱이 우선이므로 인증과 권한 모델을 단순하게 유지합니다.
+- 현재 UI는 하나의 통합 기록 모델로 충분히 빠르게 탐색할 수 있습니다.
+- Telegram 입력 흐름을 붙일 때도 현재 스키마를 크게 깨지 않고 확장할 수 있습니다.

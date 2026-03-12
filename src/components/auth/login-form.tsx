@@ -36,7 +36,7 @@ export function LoginForm({ nextPath = "/admin" }: Readonly<{ nextPath?: string 
         throw error;
       }
 
-      setMessage("로그인 링크를 이메일로 보냈습니다. 메일함에서 확인해 주세요.");
+      setMessage("로그인 링크를 이메일로 보냈습니다. 가장 최근 메일의 링크를 한 번만 열어 주세요.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "로그인 링크 발송에 실패했습니다.");
     } finally {

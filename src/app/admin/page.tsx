@@ -1,22 +1,13 @@
-import { redirect } from "next/navigation";
-
 import { AdminEditor } from "@/components/archive/admin-editor";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { requireAdminUser } from "@/lib/supabase/access";
 
 export default async function AdminPage() {
   if (!isSupabaseConfigured()) {
     return <AdminEditor />;
   }
 
-  const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/login?next=/admin");
-  }
+  await requireAdminUser("/admin");
 
   return <AdminEditor />;
 }
