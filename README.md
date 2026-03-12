@@ -28,7 +28,11 @@
 ```bash
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 ALLOWED_ADMIN_EMAIL=you@example.com
+TELEGRAM_BOT_TOKEN=123456:telegram-bot-token
+TELEGRAM_WEBHOOK_SECRET=replace-with-random-secret
+TELEGRAM_BOT_USERNAME=your_bot_username
 ```
 
 ### `ALLOWED_ADMIN_EMAIL` 동작 방식
@@ -112,8 +116,8 @@ Supabase Dashboard에서 Email 로그인 제공자가 켜져 있는지 확인합
 
 ## Telegram 준비 테이블
 
-아직 Telegram bot이나 webhook은 구현하지 않았습니다.  
-대신 다음 단계를 위해 스키마만 준비했습니다.
+이제 Telegram ingestion MVP 골격이 저장소에 포함되어 있습니다.  
+아직 OpenAI 구조화나 복잡한 대화형 수정은 넣지 않았고, private personal workflow 기준의 최소 흐름만 구현했습니다.
 
 - `telegram_identities`
   - 앱 사용자와 Telegram 사용자를 연결
@@ -121,6 +125,8 @@ Supabase Dashboard에서 Email 로그인 제공자가 켜져 있는지 확인합
   - Telegram 원문 메시지 저장
 - `draft_records`
   - 창세봇이 구조화한 승인 전 초안 저장
+- `draft_events`
+  - 승인 / 취소 / 수정 요청 같은 상태 이력 저장
 
 이 구조를 바탕으로 다음 단계에서 아래 흐름을 붙일 수 있습니다.
 
@@ -129,6 +135,51 @@ Supabase Dashboard에서 Email 로그인 제공자가 켜져 있는지 확인합
 - 구조화 초안 생성
 - 사용자 승인
 - 최종 `archive_records` 반영
+
+## Telegram MVP 설정
+
+### 필요한 환경 변수
+
+- `SUPABASE_SERVICE_ROLE_KEY`
+  - webhook/API route가 server-side write를 할 때 사용
+- `TELEGRAM_BOT_TOKEN`
+  - Telegram bot API 호출용
+- `TELEGRAM_WEBHOOK_SECRET`
+  - `X-Telegram-Bot-Api-Secret-Token` 검증용
+- `TELEGRAM_BOT_USERNAME`
+  - 관리자 화면에서 deep link 생성용, 선택값이지만 있으면 편합니다
+
+### 구현된 엔드포인트
+
+- `POST /api/telegram/webhook`
+  - Telegram update 수신
+  - secret token 검증
+  - `/start link_<token>` 연결 처리
+  - verified Telegram 계정의 rough note 저장
+  - draft 생성 및 approve/revise/reject 버튼 응답
+- `POST /api/telegram/verify`
+  - 관리자 화면에서 Telegram 연결 링크 생성
+
+### 운영 흐름
+
+1. `/admin/telegram` 에서 연결 링크 생성
+2. Telegram에서 링크 열기 또는 `/start link_<token>` 전송
+3. 본인 계정 verified 처리
+4. 메모 전송
+5. raw inbox 저장 -> draft 생성 -> Telegram 승인 버튼 전송
+6. 승인된 draft만 `archive_records`로 저장
+
+### Telegram webhook 설정 예시
+
+Telegram bot webhook은 Telegram 쪽에서 아래처럼 등록합니다.
+
+```bash
+curl -X POST "https://api.telegram.org/bot<TELEGRAM_BOT_TOKEN>/setWebhook" \
+  -H "Content-Type: application/json" \
+  -d "{\"url\":\"https://your-vercel-domain.vercel.app/api/telegram/webhook\",\"secret_token\":\"<TELEGRAM_WEBHOOK_SECRET>\"}"
+```
+
+설정 후에는 `/admin/telegram` 에서 연결 상태와 최근 inbox/draft를 확인할 수 있습니다.
 
 ## Vercel 배포
 

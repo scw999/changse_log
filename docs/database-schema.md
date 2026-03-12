@@ -72,9 +72,13 @@
 - `owner_id uuid`
 - `telegram_user_id bigint`
 - `telegram_username text`
+- `telegram_first_name text`
+- `telegram_last_name text`
 - `telegram_chat_id bigint`
 - `status text`
+- `verification_token text`
 - `verified_at timestamptz`
+- `last_seen_at timestamptz`
 
 ### `inbox_messages`
 
@@ -87,13 +91,18 @@ Telegram에서 들어온 원문 메시지를 저장합니다.
 
 - `owner_id uuid`
 - `telegram_identity_id uuid`
+- `telegram_update_id bigint`
+- `telegram_message_id bigint`
+- `telegram_chat_id bigint`
 - `source_type text`
 - `external_message_id text`
 - `raw_text text`
+- `message_type text`
 - `attachments jsonb`
 - `received_at timestamptz`
 - `processed_at timestamptz`
 - `status text`
+- `error_message text`
 - `metadata jsonb`
 
 ### `draft_records`
@@ -117,6 +126,17 @@ Telegram에서 들어온 원문 메시지를 저장합니다.
 - `tags text[]`
 - `structured_payload jsonb`
 - `assistant_note text`
+- `revision_note text`
+
+### `draft_events`
+
+초안 승인/반려/수정 요청 이력을 남깁니다.
+
+- `draft_record_id uuid`
+- `actor_type text`
+- `event_type text`
+- `payload jsonb`
+- `created_at timestamptz`
 
 ## Storage
 
