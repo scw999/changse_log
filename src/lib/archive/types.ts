@@ -5,7 +5,7 @@ export type CategoryKey =
   | "places"
   | "activities";
 
-export type SourceType = "telegram" | "manual" | "imported";
+export type SourceType = "telegram" | "manual" | "imported" | "assistant";
 
 export type RevisitIntent = "none" | "maybe" | "yes";
 

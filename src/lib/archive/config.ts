@@ -21,7 +21,7 @@ export const CATEGORY_META: Record<CategoryKey, CategoryMeta> = {
   words: {
     key: "words",
     label: "단어",
-    description: "남겨두고 싶은 단어, 표현, 조어, 문장을 모아두는 서랍",
+    description: "표현과 어휘, 조어와 문장을 모아두는 언어 아카이브",
     route: "/words",
     accentClass: "from-amber-500/25 via-yellow-300/20 to-transparent",
     panelClass: "border-amber-200/80 bg-amber-50/85",
@@ -30,7 +30,7 @@ export const CATEGORY_META: Record<CategoryKey, CategoryMeta> = {
   content: {
     key: "content",
     label: "콘텐츠",
-    description: "영화, 책, 드라마, 영상에서 남은 인상을 다시 펼쳐보는 보관함",
+    description: "영화, 책, 드라마, 영상을 다시 꺼내 보는 감상 아카이브",
     route: "/content",
     accentClass: "from-indigo-500/20 via-sky-300/20 to-transparent",
     panelClass: "border-sky-200/80 bg-sky-50/80",
@@ -39,7 +39,7 @@ export const CATEGORY_META: Record<CategoryKey, CategoryMeta> = {
   places: {
     key: "places",
     label: "장소",
-    description: "식당, 카페, 여행지, 데이트 장소를 온도감 있게 남기는 지도",
+    description: "식당, 카페, 여행지, 데이트 장소를 온도 있게 다시 보는 기록",
     route: "/places",
     accentClass: "from-emerald-500/20 via-teal-300/20 to-transparent",
     panelClass: "border-emerald-200/80 bg-emerald-50/80",
@@ -48,7 +48,7 @@ export const CATEGORY_META: Record<CategoryKey, CategoryMeta> = {
   activities: {
     key: "activities",
     label: "활동",
-    description: "운동, 등산, 러닝, 산책 기록을 몸의 감각과 함께 정리하는 로그",
+    description: "운동, 산책, 걷기, 등산 기록을 몸의 감각과 함께 정리하는 로그",
     route: "/activities",
     accentClass: "from-violet-500/20 via-fuchsia-300/20 to-transparent",
     panelClass: "border-violet-200/80 bg-violet-50/80",
@@ -71,6 +71,7 @@ export const SOURCE_LABELS: Record<SourceType, string> = {
   telegram: "텔레그램",
   manual: "수동 입력",
   imported: "가져오기",
+  assistant: "창세봇 저장",
 };
 
 export const REVISIT_LABELS: Record<RevisitIntent, string> = {
@@ -82,9 +83,9 @@ export const REVISIT_LABELS: Record<RevisitIntent, string> = {
 export const IMPORTANCE_LABELS = [
   "기록용",
   "가벼운 메모",
-  "남겨둘 가치",
+  "꺼내볼 가치",
   "자주 다시 볼 것",
-  "핵심 기록",
+  "중요 기록",
 ];
 
 export const NAV_ITEMS = [

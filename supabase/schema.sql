@@ -21,7 +21,7 @@ create table if not exists public.archive_records (
   created_at timestamptz not null default now(),
   event_date date,
   importance smallint not null check (importance between 1 and 5),
-  source_type text not null check (source_type in ('telegram', 'manual', 'imported')),
+  source_type text not null check (source_type in ('telegram', 'manual', 'imported', 'assistant')),
   summary text not null default '',
   notes text,
   details jsonb not null default '{}'::jsonb
@@ -62,7 +62,7 @@ create table if not exists public.inbox_messages (
   telegram_update_id bigint unique,
   telegram_message_id bigint,
   telegram_chat_id bigint,
-  source_type text not null default 'telegram' check (source_type in ('telegram', 'manual', 'imported')),
+  source_type text not null default 'telegram' check (source_type in ('telegram', 'manual', 'imported', 'assistant')),
   external_message_id text,
   raw_text text not null,
   message_type text not null default 'text',
@@ -88,7 +88,7 @@ create table if not exists public.draft_records (
   tags text[] not null default '{}',
   event_date date,
   importance smallint check (importance between 1 and 5),
-  source_type text not null default 'telegram' check (source_type in ('telegram', 'manual', 'imported')),
+  source_type text not null default 'telegram' check (source_type in ('telegram', 'manual', 'imported', 'assistant')),
   structured_payload jsonb not null default '{}'::jsonb,
   assistant_note text,
   revision_note text,
@@ -108,6 +108,10 @@ create table if not exists public.draft_events (
 );
 
 alter table public.telegram_identities alter column telegram_user_id drop not null;
+alter table public.archive_records drop constraint if exists archive_records_source_type_check;
+alter table public.archive_records
+  add constraint archive_records_source_type_check
+  check (source_type in ('telegram', 'manual', 'imported', 'assistant'));
 alter table public.telegram_identities add column if not exists telegram_first_name text;
 alter table public.telegram_identities add column if not exists telegram_last_name text;
 alter table public.telegram_identities add column if not exists verification_token text;
@@ -124,12 +128,20 @@ alter table public.inbox_messages add column if not exists telegram_chat_id bigi
 alter table public.inbox_messages add column if not exists message_type text not null default 'text';
 alter table public.inbox_messages add column if not exists error_message text;
 create unique index if not exists inbox_messages_update_uidx on public.inbox_messages (telegram_update_id);
+alter table public.inbox_messages drop constraint if exists inbox_messages_source_type_check;
+alter table public.inbox_messages
+  add constraint inbox_messages_source_type_check
+  check (source_type in ('telegram', 'manual', 'imported', 'assistant'));
 alter table public.inbox_messages drop constraint if exists inbox_messages_status_check;
 alter table public.inbox_messages
   add constraint inbox_messages_status_check
   check (status in ('received', 'drafted', 'awaiting_approval', 'approved', 'rejected', 'failed', 'archived'));
 
 alter table public.draft_records add column if not exists revision_note text;
+alter table public.draft_records drop constraint if exists draft_records_source_type_check;
+alter table public.draft_records
+  add constraint draft_records_source_type_check
+  check (source_type in ('telegram', 'manual', 'imported', 'assistant'));
 alter table public.draft_records drop constraint if exists draft_records_status_check;
 alter table public.draft_records
   add constraint draft_records_status_check

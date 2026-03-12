@@ -5,6 +5,7 @@ export const allowedAdminEmail = process.env.ALLOWED_ADMIN_EMAIL?.trim().toLower
 export const telegramBotToken = process.env.TELEGRAM_BOT_TOKEN;
 export const telegramWebhookSecret = process.env.TELEGRAM_WEBHOOK_SECRET;
 export const telegramBotUsername = process.env.TELEGRAM_BOT_USERNAME?.trim().replace(/^@/, "") ?? "";
+export const internalIngestSecret = process.env.INTERNAL_INGEST_SECRET;
 
 export function isSupabaseConfigured() {
   return Boolean(supabaseUrl && supabaseAnonKey);
@@ -28,4 +29,8 @@ export function isAllowedAdminEmail(email?: string | null) {
 
 export function isTelegramConfigured() {
   return Boolean(telegramBotToken && telegramWebhookSecret && supabaseUrl && supabaseServiceRoleKey);
+}
+
+export function isInternalIngestConfigured() {
+  return Boolean(internalIngestSecret && supabaseUrl && supabaseServiceRoleKey && allowedAdminEmail);
 }
