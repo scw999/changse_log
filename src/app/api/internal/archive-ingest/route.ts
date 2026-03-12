@@ -38,9 +38,13 @@ export async function POST(request: Request) {
       record: data,
     });
   } catch (error) {
+    const details = serializeInternalIngestError(error);
+    console.error("internal archive ingest failed", details);
+
     return NextResponse.json(
       {
         error: error instanceof Error ? error.message : "internal_ingest_failed",
+        details,
       },
       { status: 400 },
     );
@@ -79,4 +83,27 @@ function getRequestSecret(request: Request) {
   }
 
   return request.headers.get("x-internal-ingest-secret")?.trim() ?? "";
+}
+
+function serializeInternalIngestError(error: unknown) {
+  if (error instanceof Error) {
+    return {
+      name: error.name,
+      message: error.message,
+    };
+  }
+
+  if (typeof error === "object" && error !== null) {
+    const candidate = error as Record<string, unknown>;
+    return {
+      message: typeof candidate.message === "string" ? candidate.message : "unknown_error",
+      code: typeof candidate.code === "string" ? candidate.code : undefined,
+      details: typeof candidate.details === "string" ? candidate.details : undefined,
+      hint: typeof candidate.hint === "string" ? candidate.hint : undefined,
+    };
+  }
+
+  return {
+    message: "unknown_error",
+  };
 }
