@@ -1,0 +1,33 @@
+-- Phase 2에서는 앱이 로그인한 사용자의 레코드를 직접 저장합니다.
+-- 원격 시드는 필수가 아니며, 로컬 MVP 시드는 src/lib/archive/mock-data.ts 에 포함되어 있습니다.
+--
+-- 필요하면 아래 순서로 직접 데이터를 추가하세요.
+-- 1. Supabase Auth로 본인 계정을 하나 생성
+-- 2. SQL Editor에서 아래 쿼리로 user id 확인
+--
+-- select id, email from auth.users order by created_at desc;
+--
+-- 3. 확인한 id를 넣어 예시 insert 실행
+--
+-- insert into public.archive_records (
+--   owner_id, title, body, category, subcategory, tags, importance, source_type, summary, details
+-- ) values (
+--   'YOUR_AUTH_USER_ID',
+--   '메모는 생각을 잡아두는 최소한의 구조다',
+--   '길게 쓰는 것보다 다시 펼쳐봤을 때 바로 이해되는 구조가 더 중요했다.',
+--   'thoughts',
+--   '리플렉션',
+--   array['기록', '아카이브', '생각정리'],
+--   5,
+--   'telegram',
+--   '좋은 기록은 길이가 아니라 다시 꺼내보기 쉬운 구조에서 나온다는 메모.',
+--   jsonb_build_object(
+--     'thought', jsonb_build_object(
+--       'thoughtType', '리플렉션',
+--       'oneLineThought', '기록은 문장 수보다 재호출 가능성이 중요하다.',
+--       'expandedNote', '제목, 키워드, 맥락이 남아 있으면 생각의 윤곽은 다시 복구할 수 있다.',
+--       'actionNeeded', true,
+--       'worthRevisiting', true
+--     )
+--   )
+-- );
