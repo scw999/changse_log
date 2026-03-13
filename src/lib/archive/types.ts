@@ -6,6 +6,7 @@ export type CategoryKey =
   | "activities";
 
 export type SourceType = "telegram" | "manual" | "imported" | "assistant";
+export type RecordVisibility = "private" | "shared";
 
 export type RevisitIntent = "none" | "maybe" | "yes";
 
@@ -86,6 +87,7 @@ export interface ArchiveRecord {
   sourceType: SourceType;
   summary: string;
   notes?: string;
+  visibility: RecordVisibility;
   images?: ArchiveImage[];
   thought?: ThoughtDetails;
   word?: WordDetails;

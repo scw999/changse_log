@@ -1,6 +1,6 @@
 import { ArchiveRecord } from "@/lib/archive/types";
 
-export const seedRecords: ArchiveRecord[] = [
+const seedRecordDrafts: Array<Omit<ArchiveRecord, "visibility">> = [
   {
     id: "thought-archive-structure",
     title: "메모는 생각을 잡아두는 최소한의 구조다",
@@ -483,3 +483,8 @@ export const seedRecords: ArchiveRecord[] = [
     },
   },
 ];
+
+export const seedRecords: ArchiveRecord[] = seedRecordDrafts.map((record) => ({
+  visibility: "private",
+  ...record,
+}));

@@ -394,6 +394,17 @@ export function AdminEditor() {
                 </select>
               </Field>
 
+              <Field label="공유 범위">
+                <select
+                  value={draft.visibility}
+                  onChange={(event) => updateDraft("visibility", event.target.value as ArchiveRecord["visibility"])}
+                  className="field"
+                >
+                  <option value="private">나와 창세봇만</option>
+                  <option value="shared">게스트와 공유</option>
+                </select>
+              </Field>
+
               <Field label="보조 메모" className="md:col-span-2">
                 <textarea
                   value={draft.notes ?? ""}

@@ -11,6 +11,7 @@ type ExistingRecordRow = {
   source_type: string;
   summary: string | null;
   notes: string | null;
+  visibility: string;
   details: Record<string, unknown> | null;
 };
 
@@ -22,6 +23,7 @@ export type InternalRecordPatch = {
   tags?: string[];
   summary?: string;
   notes?: string | null;
+  visibility?: "private" | "shared";
   eventDate?: string | null;
   importance?: number;
   details?: Record<string, unknown>;
@@ -47,6 +49,7 @@ export function parseInternalRecordPatch(input: unknown): InternalRecordPatch {
     tags: parseOptionalTags(payload.tags),
     summary: parseOptionalString(payload.summary),
     notes: parseNullableString(payload.notes),
+    visibility: parseOptionalVisibility(payload.visibility),
     eventDate: parseOptionalDate(payload.event_date),
     importance: parseOptionalImportance(payload.importance),
     details: normalizeGenericDetailsPatch(parseOptionalObject(payload.details)),
@@ -76,6 +79,7 @@ export function serializeArchiveRecord(
     importance: patch.importance ?? existing.importance,
     summary: patch.summary ?? existing.summary ?? "",
     notes: patch.notes === undefined ? existing.notes : patch.notes,
+    visibility: patch.visibility ?? existing.visibility,
     details: {
       ...currentDetails,
       ...(patch.details ?? {}),
@@ -92,6 +96,18 @@ export function serializeArchiveRecord(
       },
     },
   };
+}
+
+function parseOptionalVisibility(value: unknown) {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (value === "private" || value === "shared") {
+    return value;
+  }
+
+  throw new Error("visibility must be one of private, shared");
 }
 
 function parseOptionalString(value: unknown) {

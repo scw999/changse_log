@@ -187,6 +187,7 @@ export function createEmptyRecord(category: CategoryKey = "thoughts"): ArchiveRe
     sourceType: "manual",
     summary: "",
     notes: "",
+    visibility: "private",
     images: [],
   };
 
@@ -224,6 +225,7 @@ export function normalizeRecord(record: ArchiveRecord) {
     body: record.body.trim(),
     summary: record.summary.trim(),
     notes: record.notes?.trim(),
+    visibility: record.visibility ?? "private",
     tags: normalizeTags(record.tags),
     images: record.images ?? [],
   };

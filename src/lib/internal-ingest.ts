@@ -19,6 +19,7 @@ export type InternalIngestPayload = {
   importance?: number;
   event_date?: string;
   source_type?: ArchiveRecord["sourceType"];
+  visibility?: ArchiveRecord["visibility"];
   thought?: Partial<ThoughtDetails>;
   word?: Partial<WordDetails>;
   content?: Partial<ContentDetails>;
@@ -38,6 +39,7 @@ export function parseInternalIngestPayload(input: unknown) {
   const tags = parseTags(payload.tags);
   const importance = parseImportance(payload.importance);
   const eventDate = parseOptionalDate(payload.event_date);
+  const visibility = parseVisibility(payload.visibility);
   const title = parseRequiredString(payload.title, "title");
   const body = parseRequiredString(payload.body, "body");
   const summary = parseOptionalString(payload.summary) ?? title;
@@ -55,6 +57,7 @@ export function parseInternalIngestPayload(input: unknown) {
     importance,
     eventDate,
     sourceType,
+    visibility,
     thought: category === "thoughts" ? parseOptionalObject(payload.thought) : undefined,
     word: category === "words" ? parseOptionalObject(payload.word) : undefined,
     content: category === "content" ? parseOptionalObject(payload.content) : undefined,
@@ -78,6 +81,7 @@ export function buildInternalArchiveInsert(
     event_date: payload.eventDate,
     importance: payload.importance,
     source_type: payload.sourceType,
+    visibility: payload.visibility,
     summary: payload.summary,
     notes: payload.notes ?? null,
     details: {
@@ -120,6 +124,18 @@ function parseSourceType(value: unknown): ArchiveRecord["sourceType"] {
   }
 
   throw new Error("source_type must be one of assistant, telegram, manual, imported");
+}
+
+function parseVisibility(value: unknown): ArchiveRecord["visibility"] {
+  if (!value) {
+    return "private";
+  }
+
+  if (value === "private" || value === "shared") {
+    return value;
+  }
+
+  throw new Error("visibility must be one of private, shared");
 }
 
 function parseRequiredString(value: unknown, field: string) {

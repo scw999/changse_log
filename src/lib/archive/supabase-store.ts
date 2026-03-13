@@ -7,7 +7,7 @@ const RECORDS_TABLE = "archive_records";
 const IMAGES_TABLE = "archive_record_images";
 const BUCKET = "record-images";
 
-type RecordRow = {
+export type RecordRow = {
   id: string;
   owner_id: string;
   title: string;
@@ -21,10 +21,11 @@ type RecordRow = {
   source_type: ArchiveRecord["sourceType"];
   summary: string | null;
   notes: string | null;
+  visibility: ArchiveRecord["visibility"];
   details: Record<string, unknown> | null;
 };
 
-type ImageRow = {
+export type ImageRow = {
   id: string;
   record_id: string;
   owner_id: string;
@@ -37,44 +38,24 @@ type ImageRow = {
 };
 
 export async function fetchRemoteArchiveRecords(
-  client: SupabaseClient,
-  user: User,
+  _client: SupabaseClient,
+  _user: User,
 ) {
-  const { data: rows, error } = await client
-    .from(RECORDS_TABLE)
-    .select("*")
-    .eq("owner_id", user.id)
-    .order("event_date", { ascending: false, nullsFirst: false })
-    .order("created_at", { ascending: false });
+  void _client;
+  void _user;
+  const response = await fetch("/api/archive/records", {
+    method: "GET",
+    credentials: "include",
+    cache: "no-store",
+  });
 
-  if (error) {
-    throw error;
+  if (!response.ok) {
+    const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+    throw new Error(payload?.error ?? "archive_records_fetch_failed");
   }
 
-  const recordRows = (rows ?? []) as RecordRow[];
-
-  const { data: imageRows, error: imageError } = await client
-    .from(IMAGES_TABLE)
-    .select("*")
-    .eq("owner_id", user.id)
-    .order("sort_order", { ascending: true })
-    .order("created_at", { ascending: true });
-
-  if (imageError) {
-    throw imageError;
-  }
-
-  const images = await hydrateImageUrls(client, (imageRows ?? []) as ImageRow[]);
-
-  const imagesByRecord = new Map<string, ArchiveImage[]>();
-  for (const image of images) {
-    const list = imagesByRecord.get(image.recordId) ?? [];
-    list.push(image.image);
-    imagesByRecord.set(image.recordId, list);
-  }
-
-  const records = recordRows.map((row) => rowToRecord(row, imagesByRecord.get(row.id) ?? []));
-  return sortRecords(records, "newest");
+  const payload = (await response.json()) as { records?: ArchiveRecord[] };
+  return sortRecords(payload.records ?? [], "newest");
 }
 
 export async function upsertRemoteArchiveRecord(
@@ -211,6 +192,7 @@ function recordToRow(ownerId: string, record: ArchiveRecord) {
     source_type: record.sourceType,
     summary: record.summary,
     notes: record.notes ?? null,
+    visibility: record.visibility,
     details: {
       thought: record.thought ?? null,
       word: record.word ?? null,
@@ -222,7 +204,7 @@ function recordToRow(ownerId: string, record: ArchiveRecord) {
   };
 }
 
-function rowToRecord(row: RecordRow, images: ArchiveImage[]): ArchiveRecord {
+export function rowToRecord(row: RecordRow, images: ArchiveImage[]): ArchiveRecord {
   const details = (row.details ?? {}) as {
     thought?: ArchiveRecord["thought"];
     word?: ArchiveRecord["word"];
@@ -253,6 +235,7 @@ function rowToRecord(row: RecordRow, images: ArchiveImage[]): ArchiveRecord {
     sourceType: row.source_type,
     summary: row.summary ?? "",
     notes: row.notes ?? undefined,
+    visibility: row.visibility ?? "private",
     images: normalizeImages(images),
     thought: details.thought,
     word: details.word,
@@ -262,7 +245,7 @@ function rowToRecord(row: RecordRow, images: ArchiveImage[]): ArchiveRecord {
   };
 }
 
-async function hydrateImageUrls(client: SupabaseClient, rows: ImageRow[]) {
+export async function hydrateImageUrls(client: SupabaseClient, rows: ImageRow[]) {
   if (rows.length === 0) {
     return [] as Array<{ recordId: string; image: ArchiveImage }>;
   }

@@ -24,6 +24,7 @@ create table if not exists public.archive_records (
   source_type text not null check (source_type in ('telegram', 'manual', 'imported', 'assistant')),
   summary text not null default '',
   notes text,
+  visibility text not null default 'private' check (visibility in ('private', 'shared')),
   details jsonb not null default '{}'::jsonb,
   updated_at timestamptz not null default now()
 );
@@ -111,11 +112,16 @@ create table if not exists public.draft_events (
 
 alter table public.telegram_identities alter column telegram_user_id drop not null;
 alter table public.archive_records add column if not exists updated_at timestamptz not null default now();
+alter table public.archive_records add column if not exists visibility text not null default 'private';
 alter table public.archive_record_images add column if not exists is_primary boolean not null default false;
 alter table public.archive_records drop constraint if exists archive_records_source_type_check;
 alter table public.archive_records
   add constraint archive_records_source_type_check
   check (source_type in ('telegram', 'manual', 'imported', 'assistant'));
+alter table public.archive_records drop constraint if exists archive_records_visibility_check;
+alter table public.archive_records
+  add constraint archive_records_visibility_check
+  check (visibility in ('private', 'shared'));
 alter table public.telegram_identities add column if not exists telegram_first_name text;
 alter table public.telegram_identities add column if not exists telegram_last_name text;
 alter table public.telegram_identities add column if not exists verification_token text;

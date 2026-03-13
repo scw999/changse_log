@@ -19,6 +19,7 @@ type ArchiveRecordLookup = {
   source_type: string;
   summary: string | null;
   notes: string | null;
+  visibility: string;
   details: Record<string, unknown> | null;
 };
 
@@ -82,7 +83,7 @@ export async function listOwnedArchiveRecords(options?: {
   let query = admin
     .from(RECORDS_TABLE)
     .select(
-      "id, owner_id, title, body, category, subcategory, tags, created_at, updated_at, event_date, importance, source_type, summary, notes, details",
+      "id, owner_id, title, body, category, subcategory, tags, created_at, updated_at, event_date, importance, source_type, summary, notes, visibility, details",
     )
     .eq("owner_id", ownerId)
     .order("updated_at", { ascending: false })
