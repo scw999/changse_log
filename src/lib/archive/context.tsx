@@ -33,8 +33,16 @@ function createLocalSnapshot() {
   return stored && stored.length > 0 ? sortRecords(stored, "newest") : createSeedSnapshot();
 }
 
+function createInitialRecords() {
+  if (isSupabaseConfigured()) {
+    return [] as ArchiveRecord[];
+  }
+
+  return createLocalSnapshot();
+}
+
 export function ArchiveProvider({ children }: Readonly<{ children: React.ReactNode }>) {
-  const [records, setRecords] = useState<ArchiveRecord[]>(createLocalSnapshot);
+  const [records, setRecords] = useState<ArchiveRecord[]>(createInitialRecords);
   const [isReady, setIsReady] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [isRemote, setIsRemote] = useState(false);
@@ -43,10 +51,8 @@ export function ArchiveProvider({ children }: Readonly<{ children: React.ReactNo
     let ignore = false;
 
     async function bootstrap() {
-      const fallback = createLocalSnapshot();
-
       if (!isSupabaseConfigured()) {
-        setRecords(fallback);
+        setRecords(createLocalSnapshot());
         setIsRemote(false);
         setIsReady(true);
         return;
@@ -64,7 +70,7 @@ export function ArchiveProvider({ children }: Readonly<{ children: React.ReactNo
       setUser(currentUser);
 
       if (!currentUser) {
-        setRecords(fallback);
+        setRecords([]);
         setIsRemote(false);
         setIsReady(true);
         return;
@@ -78,7 +84,7 @@ export function ArchiveProvider({ children }: Readonly<{ children: React.ReactNo
         }
       } catch {
         if (!ignore) {
-          setRecords(fallback);
+          setRecords([]);
           setIsRemote(false);
         }
       } finally {
@@ -103,7 +109,7 @@ export function ArchiveProvider({ children }: Readonly<{ children: React.ReactNo
         setUser(nextUser);
 
         if (!nextUser) {
-          setRecords(createLocalSnapshot());
+          setRecords([]);
           setIsRemote(false);
           setIsReady(true);
           return;
@@ -119,7 +125,7 @@ export function ArchiveProvider({ children }: Readonly<{ children: React.ReactNo
           })
           .catch(() => {
             if (!ignore) {
-              setRecords(createLocalSnapshot());
+              setRecords([]);
               setIsRemote(false);
               setIsReady(true);
             }
