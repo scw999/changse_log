@@ -28,6 +28,14 @@ export function filterRecords(records: ArchiveRecord[], filters: RecordFilterSta
         return false;
       }
 
+      if (filters.month !== "all") {
+        const primaryMonth = (record.eventDate ?? record.createdAt).slice(0, 7);
+
+        if (primaryMonth !== filters.month) {
+          return false;
+        }
+      }
+
       if (filters.ratingMin !== null) {
         const rating = getRecordRating(record);
 

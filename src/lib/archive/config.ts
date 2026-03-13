@@ -62,6 +62,7 @@ export const DEFAULT_FILTERS: RecordFilterState = {
   subcategory: "all",
   tag: "all",
   area: "all",
+  month: "all",
   ratingMin: null,
   importanceMin: null,
   revisitOnly: false,

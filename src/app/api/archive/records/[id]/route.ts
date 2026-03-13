@@ -1,13 +1,7 @@
 import { NextResponse } from "next/server";
 
-import { hydrateImageUrls, ImageRow, RecordRow, rowToRecord } from "@/lib/archive/supabase-store";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { isAllowedAdminEmail, isSupabaseAdminConfigured } from "@/lib/supabase/env";
-import { requireViewerUser } from "@/lib/supabase/access";
-import { resolveAllowedOwnerId } from "@/lib/internal-auth";
-
-const RECORDS_TABLE = "archive_records";
-const IMAGES_TABLE = "archive_record_images";
+import { getServerArchiveRecordDetail } from "@/lib/archive/server-records";
+import { isSupabaseAdminConfigured } from "@/lib/supabase/env";
 
 export async function GET(
   _request: Request,
@@ -17,49 +11,20 @@ export async function GET(
     return NextResponse.json({ error: "supabase_admin_not_configured" }, { status: 503 });
   }
 
-  const viewer = await requireViewerUser("/");
   const { id } = await context.params;
-  const ownerId = await resolveAllowedOwnerId();
-  const admin = createSupabaseAdminClient();
-  const canViewPrivate = isAllowedAdminEmail(viewer?.email);
 
-  let recordQuery = admin
-    .from(RECORDS_TABLE)
-    .select("*")
-    .eq("owner_id", ownerId)
-    .eq("id", id);
+  try {
+    const record = await getServerArchiveRecordDetail(id);
 
-  if (!canViewPrivate) {
-    recordQuery = recordQuery.eq("visibility", "shared");
+    if (!record) {
+      return NextResponse.json({ error: "record_not_found" }, { status: 404 });
+    }
+
+    return NextResponse.json({ ok: true, record });
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "record_detail_fetch_failed" },
+      { status: 400 },
+    );
   }
-
-  const { data: recordRow, error: recordError } = await recordQuery.maybeSingle();
-
-  if (recordError) {
-    return NextResponse.json({ error: recordError.message }, { status: 400 });
-  }
-
-  if (!recordRow) {
-    return NextResponse.json({ error: "record_not_found" }, { status: 404 });
-  }
-
-  const { data: imageRows, error: imageError } = await admin
-    .from(IMAGES_TABLE)
-    .select("*")
-    .eq("owner_id", ownerId)
-    .eq("record_id", id)
-    .order("sort_order", { ascending: true })
-    .order("created_at", { ascending: true });
-
-  if (imageError) {
-    return NextResponse.json({ error: imageError.message }, { status: 400 });
-  }
-
-  const hydratedImages = await hydrateImageUrls(admin, (imageRows ?? []) as ImageRow[]);
-  const images = hydratedImages.map((entry) => entry.image);
-
-  return NextResponse.json({
-    ok: true,
-    record: rowToRecord(recordRow as RecordRow, images),
-  });
 }

@@ -1,4 +1,8 @@
+import { notFound } from "next/navigation";
+
 import { RecordDetailView } from "@/components/archive/record-detail-view";
+import { getServerArchiveRecordDetail } from "@/lib/archive/server-records";
+import { isSupabaseAdminConfigured } from "@/lib/supabase/env";
 
 export default async function RecordDetailPage({
   params,
@@ -7,5 +11,15 @@ export default async function RecordDetailPage({
 }>) {
   const { id } = await params;
 
-  return <RecordDetailView id={id} />;
+  if (!isSupabaseAdminConfigured()) {
+    return <RecordDetailView id={id} />;
+  }
+
+  const initialRecord = await getServerArchiveRecordDetail(id);
+
+  if (!initialRecord) {
+    notFound();
+  }
+
+  return <RecordDetailView id={id} initialRecord={initialRecord} />;
 }

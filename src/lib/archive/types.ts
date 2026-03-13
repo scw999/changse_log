@@ -120,6 +120,7 @@ export interface RecordFilterState {
   subcategory: string;
   tag: string;
   area: string;
+  month: string;
   ratingMin: number | null;
   importanceMin: number | null;
   revisitOnly: boolean;
