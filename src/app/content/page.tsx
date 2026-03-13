@@ -1,12 +1,20 @@
 import { CategoryPage } from "@/components/archive/category-page";
 
-export default function ContentPage() {
+export default async function ContentPage({
+  searchParams,
+}: Readonly<{
+  searchParams: Promise<{ tag?: string; q?: string }>;
+}>) {
+  const { tag, q } = await searchParams;
+
   return (
     <CategoryPage
       category="content"
       eyebrow="Content Archive"
-      title="영화, 책, 드라마, 영상의 인상을 정리하는 감상 보관함"
-      description="평점과 한 줄 리뷰, 기억 포인트, 재감상 의도를 함께 보며 나에게 오래 남는 콘텐츠를 다시 발견합니다."
+      title="영화, 책, 드라마, 영상 감상을 다시 돌아보는 공간"
+      description="평점, 한 줄 리뷰, 기억에 남는 포인트를 함께 보며 오래 남은 콘텐츠를 다시 발견할 수 있습니다."
+      initialTag={tag}
+      initialQuery={q}
     />
   );
 }

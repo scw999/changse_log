@@ -34,7 +34,6 @@ export function RecordExplorer({
 }: Readonly<RecordExplorerProps>) {
   const { records, isReady } = useArchive();
   const filterSectionRef = useRef<HTMLElement | null>(null);
-  const tagsSectionRef = useRef<HTMLElement | null>(null);
   const resultsSectionRef = useRef<HTMLDivElement | null>(null);
   const [filters, setFilters] = useState<RecordFilterState>(() => ({
     ...DEFAULT_FILTERS,
@@ -50,7 +49,6 @@ export function RecordExplorer({
   const options = collectFilterOptions(scopedRecords);
   const monthOptions = collectMonthOptions(scopedRecords);
   const filteredRecords = filterRecords(scopedRecords, { ...filters, search: deferredSearch });
-  const tagCounts = collectTagCounts(scopedRecords);
 
   const highRatedCount = scopedRecords.filter((record) => (getRecordRating(record) ?? 0) >= 4.5).length;
   const revisitCount = scopedRecords.filter((record) => getRecordRevisitIntent(record) === "yes").length;
@@ -58,10 +56,6 @@ export function RecordExplorer({
 
   function updateFilter<Key extends keyof RecordFilterState>(key: Key, value: RecordFilterState[Key]) {
     setFilters((current) => ({ ...current, [key]: value }));
-  }
-
-  function scrollToTags() {
-    tagsSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   function scrollToResults() {
@@ -81,14 +75,6 @@ export function RecordExplorer({
     setFilters((current) => ({
       ...current,
       revisitOnly: true,
-    }));
-    requestAnimationFrame(scrollToResults);
-  }
-
-  function openTag(tag: string) {
-    setFilters((current) => ({
-      ...current,
-      tag,
     }));
     requestAnimationFrame(scrollToResults);
   }
@@ -245,43 +231,10 @@ export function RecordExplorer({
         <StatCard
           label="태그"
           value={`${options.tags.length}`}
-          note="태그만 따로 모아 보고, 누르면 해당 글 목록으로 이동합니다."
-          onClick={scrollToTags}
+          note="태그 모음 페이지로 이동합니다."
+          href={getTagsPageHref(category)}
         />
       </div>
-
-      <SectionCard
-        className="scroll-mt-24"
-        ref={tagsSectionRef}
-        title="태그 모아보기"
-        description="태그를 누르면 해당 태그가 달린 기록 목록으로 바로 이동합니다."
-      >
-        {tagCounts.length === 0 ? (
-          <div className="soft-panel px-5 py-5 text-sm leading-7 text-stone-600">
-            현재 범위에는 태그가 없습니다.
-          </div>
-        ) : (
-          <div className="flex flex-wrap gap-2">
-            {tagCounts.map(([tag, count]) => (
-              <button
-                key={tag}
-                type="button"
-                onClick={() => openTag(tag)}
-                className={`rounded-full border px-3 py-2 text-sm shadow-sm transition ${
-                  filters.tag === tag
-                    ? "border-stone-900 bg-stone-900 text-white"
-                    : "border-white/80 bg-white/80 text-stone-700 hover:-translate-y-0.5 hover:bg-white"
-                }`}
-              >
-                #{tag}{" "}
-                <span className={filters.tag === tag ? "text-white/70" : "text-stone-400"}>
-                  · {count}
-                </span>
-              </button>
-            ))}
-          </div>
-        )}
-      </SectionCard>
 
       {!isReady ? (
         <SectionCard
@@ -322,22 +275,8 @@ function collectMonthOptions(records: Array<{ eventDate?: string; createdAt: str
   return [...new Set(records.map((record) => (record.eventDate ?? record.createdAt).slice(0, 7)))];
 }
 
-function collectTagCounts(records: Array<{ tags: string[] }>) {
-  const counts = new Map<string, number>();
-
-  for (const record of records) {
-    for (const tag of record.tags) {
-      counts.set(tag, (counts.get(tag) ?? 0) + 1);
-    }
-  }
-
-  return [...counts.entries()].sort((left, right) => {
-    if (right[1] !== left[1]) {
-      return right[1] - left[1];
-    }
-
-    return left[0].localeCompare(right[0], "ko");
-  });
+function getTagsPageHref(category?: CategoryKey) {
+  return category ? `/tags?category=${category}` : "/tags";
 }
 
 function SelectField({

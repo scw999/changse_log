@@ -1,12 +1,20 @@
 import { CategoryPage } from "@/components/archive/category-page";
 
-export default function ActivitiesPage() {
+export default async function ActivitiesPage({
+  searchParams,
+}: Readonly<{
+  searchParams: Promise<{ tag?: string; q?: string }>;
+}>) {
+  const { tag, q } = await searchParams;
+
   return (
     <CategoryPage
       category="activities"
       eyebrow="Activity Archive"
-      title="운동과 산책, 등산과 러닝 기록을 몸의 감각과 함께 남기기"
-      description="거리, 시간, 난이도, 만족도뿐 아니라 컨디션과 회복감까지 함께 남겨 활동 패턴을 다시 읽을 수 있게 합니다."
+      title="이동과 운동, 활동 기록을 다시 읽는 공간"
+      description="거리, 시간, 난이도, 만족도와 함께 활동 흐름을 다시 살펴볼 수 있습니다."
+      initialTag={tag}
+      initialQuery={q}
     />
   );
 }

@@ -1,5 +1,5 @@
-import { PageHeader } from "@/components/ui/page-header";
 import { RecordExplorer } from "@/components/archive/record-explorer";
+import { PageHeader } from "@/components/ui/page-header";
 import { CATEGORY_META } from "@/lib/archive/config";
 import { CategoryKey } from "@/lib/archive/types";
 
@@ -8,6 +8,8 @@ interface CategoryPageProps {
   eyebrow: string;
   title: string;
   description: string;
+  initialTag?: string;
+  initialQuery?: string;
 }
 
 export function CategoryPage({
@@ -15,6 +17,8 @@ export function CategoryPage({
   eyebrow,
   title,
   description,
+  initialTag,
+  initialQuery,
 }: Readonly<CategoryPageProps>) {
   const meta = CATEGORY_META[category];
 
@@ -38,8 +42,10 @@ export function CategoryPage({
 
       <RecordExplorer
         category={category}
+        initialTag={initialTag}
+        initialQuery={initialQuery}
         emptyTitle={`${meta.label} 기록이 아직 없습니다`}
-        emptyDescription={`첫 ${meta.label} 기록을 남기면 여기에서 필터와 검색으로 바로 탐색할 수 있습니다.`}
+        emptyDescription={`${meta.label} 기록이 쌓이면 여기에서 필터와 검색으로 빠르게 다시 볼 수 있습니다.`}
       />
     </div>
   );
