@@ -36,6 +36,7 @@ export async function POST(
 
     const caption = toOptionalString(formData.get("caption"));
     const altText = toOptionalString(formData.get("alt_text"));
+    const isPrimary = toOptionalBoolean(formData.get("is_primary"));
     const sortOrder = Number(formData.get("sort_order") ?? "0");
     const safeName = `${Date.now()}-${file.name.replace(/\s+/g, "-")}`;
     const storagePath = `${ownerId}/${id}/${safeName}`;
@@ -53,6 +54,18 @@ export async function POST(
       throw uploadError;
     }
 
+    if (isPrimary) {
+      const { error: resetPrimaryError } = await admin
+        .from(IMAGES_TABLE)
+        .update({ is_primary: false })
+        .eq("record_id", id)
+        .eq("owner_id", ownerId);
+
+      if (resetPrimaryError) {
+        throw resetPrimaryError;
+      }
+    }
+
     const { data, error } = await admin
       .from(IMAGES_TABLE)
       .insert({
@@ -61,6 +74,7 @@ export async function POST(
         storage_path: storagePath,
         caption: caption ?? "",
         alt_text: altText ?? "",
+        is_primary: isPrimary ?? false,
         sort_order: Number.isFinite(sortOrder) ? sortOrder : 0,
       })
       .select("*")
@@ -82,7 +96,7 @@ export async function POST(
         caption: data.caption ?? undefined,
         altText: data.alt_text ?? undefined,
         sortOrder: data.sort_order,
-        isPrimary: data.sort_order === 0,
+        isPrimary: data.is_primary,
         createdAt: data.created_at,
       },
     });
@@ -102,4 +116,20 @@ export async function POST(
 
 function toOptionalString(value: FormDataEntryValue | null) {
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
+}
+
+function toOptionalBoolean(value: FormDataEntryValue | null) {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+
+  if (value === "true") {
+    return true;
+  }
+
+  if (value === "false") {
+    return false;
+  }
+
+  return undefined;
 }

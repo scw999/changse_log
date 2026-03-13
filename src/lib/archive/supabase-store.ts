@@ -31,6 +31,7 @@ type ImageRow = {
   storage_path: string;
   caption: string | null;
   alt_text: string | null;
+  is_primary: boolean;
   sort_order: number;
   created_at: string;
 };
@@ -135,6 +136,7 @@ export async function uploadRemoteRecordImages(
       storage_path: storagePath,
       caption: "",
       alt_text: "",
+      is_primary: false,
       sort_order: nextSortBase + index,
     };
 
@@ -181,6 +183,7 @@ export async function syncRemoteRecordImages(
       .update({
         caption: image.caption ?? "",
         alt_text: image.altText ?? "",
+        is_primary: Boolean(image.isPrimary),
         sort_order: image.sortOrder,
       })
       .eq("id", image.id)
@@ -281,7 +284,7 @@ async function hydrateImageUrls(client: SupabaseClient, rows: ImageRow[]) {
       caption: row.caption ?? undefined,
       altText: row.alt_text ?? undefined,
       sortOrder: row.sort_order,
-      isPrimary: false,
+      isPrimary: row.is_primary,
       createdAt: row.created_at,
     },
   }));

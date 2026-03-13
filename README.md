@@ -1,20 +1,12 @@
-# 창세록
+# changse_log
 
-창세록은 개인용 삶의 기록 아카이브입니다.
+changse_log is a private personal archive for structured life records.
 
-- 웹앱: 탐색, 수정, 리뷰
-- trusted assistant: internal API를 통한 생성, 검색, 최근 조회, 수정, 삭제, 이미지 첨부
-- 저장소: Supabase Database + Storage
+- Web app: browse, filter, review, and edit
+- Trusted assistant APIs: create, search, recent lookup, update, delete, and image attachment
+- Data and files: Supabase Postgres + private Storage bucket
 
-## 현재 입력 흐름
-
-1. 웹 관리자에서 직접 기록 생성/수정
-2. assistant가 새 기록 저장
-3. assistant가 기존 기록 검색/최근 조회
-4. assistant가 기존 기록 수정/삭제
-5. 웹 관리자와 assistant가 모두 기록 이미지를 다룸
-
-## 환경 변수
+## Environment Variables
 
 ```bash
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
@@ -28,120 +20,117 @@ TELEGRAM_WEBHOOK_SECRET=replace-with-random-secret
 TELEGRAM_BOT_USERNAME=your_bot_username
 ```
 
-## Supabase 설정
+## Private Access
 
-Supabase SQL Editor에서 [schema.sql](C:/Users/scw99/Documents/development/changselog/supabase/schema.sql) 을 실행합니다.
+This app is not public.
 
-포함 항목:
+- `ALLOWED_VIEWER_EMAILS`: only these emails can open the archive
+- `ALLOWED_ADMIN_EMAIL`: only this email can access admin/editing and owner-scoped assistant writes
+
+Supabase auth session cookies keep users signed in between visits until the session expires or they sign out.
+
+## Supabase Setup
+
+Run [schema.sql](C:/Users/scw99/Documents/development/changselog/supabase/schema.sql) in the Supabase SQL Editor.
+
+This creates:
 
 - `archive_records`
 - `archive_record_images`
 - private bucket `record-images`
-- owner 기반 RLS
-- `archive_records.updated_at` 자동 갱신
+- owner-scoped RLS policies
+- helper columns such as `updated_at`
+- `archive_record_images.is_primary` for representative image selection
 
-## Private Access
+## Representative Image Model
 
-창세록은 공개 사이트가 아니라 allowlist 기반 private archive입니다.
+Gallery order and representative image are separate.
 
-- `ALLOWED_VIEWER_EMAILS`
-  - 열람 가능한 이메일 목록
-  - 쉼표로 여러 주소 지정 가능
-- `ALLOWED_ADMIN_EMAIL`
-  - 관리자 편집 권한 이메일
-  - viewer 목록에도 자동 포함됩니다
+- Gallery order uses `sort_order`
+- Representative image uses `archive_record_images.is_primary`
+- Cards and thumbnails use:
+  1. the image with `is_primary = true`
+  2. otherwise the first image by gallery order
+  3. otherwise no image
 
-동작 방식:
+Important:
 
-1. 허용된 이메일만 로그인 후 앱 열람 가능
-2. 허용되지 않은 이메일은 `access-denied` 로 이동
-3. Supabase 세션 쿠키가 유지되므로 한 번 로그인하면 계속 볼 수 있음
+- setting a representative image does not move it to the front
+- existing records still work because they safely fall back to the first image
 
-배포 후 환경 변수를 바꾸면 Vercel에서 `Redeploy` 해야 합니다.
+## Web Image Behavior
 
-## 이미지 동작 방식
+- Admin can upload multiple images per record
+- Admin can edit caption and alt text
+- Admin can reorder gallery images
+- Admin can choose a representative image independently
+- Detail page images open in a larger lightbox viewer
 
-대표 이미지 전용 컬럼을 추가하지 않고, 가장 앞 순서의 이미지를 대표 이미지로 간주합니다.
+## Internal APIs
 
-대표 이미지 선택 규칙:
-
-1. 사용자가 대표 이미지로 지정한 이미지
-2. 명시적 지정이 없으면 sort order가 가장 앞선 이미지
-3. 이미지가 없으면 썸네일 없음
-
-이 방식 덕분에 기존 record도 migration 없이 바로 동작합니다.
-
-## 웹 UI 이미지 기능
-
-- 상세 페이지에서 이미지 클릭 시 큰 화면으로 보기
-- 닫기 버튼
-- `Esc` 닫기
-- 배경 클릭 닫기
-- 여러 이미지면 이전/다음 이동
-- record card와 recent/list card에서 대표 이미지 썸네일 표시
-- 관리자에서 대표 이미지 지정 가능
-
-## Internal API
-
-모든 internal route는 아래 방식으로 인증합니다.
+All internal assistant routes require:
 
 ```http
 Authorization: Bearer <INTERNAL_INGEST_SECRET>
 ```
 
-또는:
+or:
 
 ```http
 x-internal-ingest-secret: <INTERNAL_INGEST_SECRET>
 ```
 
-### 기록 생성
+Available routes:
 
 - `POST /api/internal/archive-ingest`
-
-### 기록 검색
-
 - `POST /api/internal/archive-records/search`
-
-### 최근 기록 조회
-
 - `GET /api/internal/archive-records/recent?limit=10`
-
-### 기록 수정
-
 - `PATCH /api/internal/archive-records/[id]`
-
-### 기록 삭제
-
 - `DELETE /api/internal/archive-records/[id]`
-
-### 기록 이미지 첨부
-
 - `POST /api/internal/archive-records/[id]/images`
-
-### 기록 이미지 메타데이터 수정
-
 - `PATCH /api/internal/archive-records/[id]/images/[imageId]`
 
-지원 필드:
+### Internal Search Example
 
-- `caption`
-- `alt_text`
-- `sort_order`
-- `is_primary`
+Search by Korean title:
 
-`is_primary: true` 는 내부적으로 해당 이미지를 첫 순서로 재배치해서 대표 이미지로 만듭니다.
+```bash
+curl -X POST https://changselog.vercel.app/api/internal/archive-records/search \
+  -H "Authorization: Bearer <INTERNAL_INGEST_SECRET>" \
+  -H "Content-Type: application/json" \
+  -d '{"query":"스픽 노 모어","category":"content","limit":10}'
+```
 
-## Internal image patch 예시
+Search by original title:
+
+```bash
+curl -X POST https://changselog.vercel.app/api/internal/archive-records/search \
+  -H "Authorization: Bearer <INTERNAL_INGEST_SECRET>" \
+  -H "Content-Type: application/json" \
+  -d '{"query":"Speak No Evil","category":"content","limit":10}'
+```
+
+### Patch Found Record Example
+
+```bash
+curl -X PATCH https://changselog.vercel.app/api/internal/archive-records/<record-id> \
+  -H "Authorization: Bearer <INTERNAL_INGEST_SECRET>" \
+  -H "Content-Type: application/json" \
+  -d '{"title":"영화 기록: 스픽 노 이블","content":{"originalTitle":"Speak No Evil"}}'
+```
+
+### Patch Image Metadata Example
+
+This updates representative image without changing gallery order:
 
 ```bash
 curl -X PATCH https://changselog.vercel.app/api/internal/archive-records/<record-id>/images/<image-id> \
   -H "Authorization: Bearer <INTERNAL_INGEST_SECRET>" \
   -H "Content-Type: application/json" \
-  -d '{"caption":"영화 포스터","alt_text":"스픽 노 이블 포스터","is_primary":true}'
+  -d '{"caption":"자전거 두 대 있는 사진","is_primary":true}'
 ```
 
-응답 예시:
+Expected response:
 
 ```json
 {
@@ -149,38 +138,38 @@ curl -X PATCH https://changselog.vercel.app/api/internal/archive-records/<record
   "image": {
     "id": "image-id",
     "recordId": "record-id",
-    "caption": "영화 포스터",
-    "altText": "스픽 노 이블 포스터",
-    "sortOrder": 0,
+    "caption": "자전거 두 대 있는 사진",
+    "altText": "",
+    "sortOrder": 2,
     "isPrimary": true
   }
 }
 ```
 
-## 로컬 실행
+## Local Development
 
 ```bash
 npm install
 npm run dev
 ```
 
-PowerShell에서 `npm` 이 막히면:
+If PowerShell blocks `npm` scripts:
 
 ```powershell
 cmd /c npm install
 cmd /c npm run dev
 ```
 
-## 검증
+## Verification
 
 ```bash
 npm run lint
 npm run build
 ```
 
-## 문서
+## Docs
 
-- [정보 구조](C:/Users/scw99/Documents/development/changselog/docs/information-architecture.md)
-- [데이터베이스 스키마](C:/Users/scw99/Documents/development/changselog/docs/database-schema.md)
+- [Information Architecture](C:/Users/scw99/Documents/development/changselog/docs/information-architecture.md)
+- [Database Schema](C:/Users/scw99/Documents/development/changselog/docs/database-schema.md)
 - [Internal Ingestion Spec](C:/Users/scw99/Documents/development/changselog/docs/internal-ingestion-spec.md)
-- [폴더 구조](C:/Users/scw99/Documents/development/changselog/docs/folder-structure.md)
+- [Folder Structure](C:/Users/scw99/Documents/development/changselog/docs/folder-structure.md)

@@ -326,27 +326,22 @@ export function normalizeImages(images: ArchiveImage[] = []) {
     .map((image, index) => ({
       ...image,
       sortOrder: index,
-      isPrimary: index === 0,
+      isPrimary: Boolean(image.isPrimary),
     }));
 }
 
 export function getRepresentativeImage(record: Pick<ArchiveRecord, "images">) {
   const images = normalizeImages(record.images ?? []);
-  return images[0] ?? null;
+  return images.find((image) => image.isPrimary) ?? images[0] ?? null;
 }
 
 export function setPrimaryImage(images: ArchiveImage[], imageId: string) {
-  const ordered = normalizeImages(images);
-  const targetIndex = ordered.findIndex((image) => image.id === imageId);
-
-  if (targetIndex <= 0) {
-    return ordered;
-  }
-
-  const next = [...ordered];
-  const [target] = next.splice(targetIndex, 1);
-  next.unshift(target);
-  return normalizeImages(next);
+  return normalizeImages(
+    images.map((image) => ({
+      ...image,
+      isPrimary: image.id === imageId,
+    })),
+  );
 }
 
 export function moveImageToOrder(images: ArchiveImage[], imageId: string, nextOrder: number) {

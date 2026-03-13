@@ -47,7 +47,8 @@ export async function PATCH(
       return NextResponse.json({ error: "image_not_found" }, { status: 404 });
     }
 
-    const reordered = reorderImages(images, imageId, patch.sortOrder, patch.isPrimary);
+    const reordered = reorderImages(images, imageId, patch.sortOrder);
+    const nextPrimaryMap = resolvePrimaryFlags(reordered, imageId, patch.isPrimary);
     const admin = createSupabaseAdminClient();
 
     for (const image of reordered) {
@@ -58,6 +59,7 @@ export async function PATCH(
           caption: isTarget ? patch.caption ?? image.caption ?? "" : image.caption ?? "",
           alt_text: isTarget ? patch.altText ?? image.alt_text ?? "" : image.alt_text ?? "",
           sort_order: image.sort_order,
+          is_primary: nextPrimaryMap.get(image.id) ?? false,
         })
         .eq("id", image.id)
         .eq("record_id", id)
@@ -78,7 +80,7 @@ export async function PATCH(
         caption: updated?.caption ?? patch.caption ?? "",
         altText: updated?.alt_text ?? patch.altText ?? "",
         sortOrder: updated?.sort_order ?? 0,
-        isPrimary: (updated?.sort_order ?? 0) === 0,
+        isPrimary: nextPrimaryMap.get(imageId) ?? false,
       },
     });
   } catch (error) {
@@ -137,12 +139,12 @@ function reorderImages(
     id: string;
     caption: string | null;
     alt_text: string | null;
+    is_primary: boolean;
     sort_order: number;
     created_at: string;
   }>,
   imageId: string,
   nextOrder?: number,
-  isPrimary?: boolean,
 ) {
   const ordered = [...images]
     .sort((left, right) => {
@@ -159,9 +161,8 @@ function reorderImages(
     return ordered;
   }
 
-  const targetIndex = isPrimary
-    ? 0
-    : nextOrder === undefined
+  const targetIndex =
+    nextOrder === undefined
       ? currentIndex
       : Math.max(0, Math.min(nextOrder, ordered.length - 1));
 
@@ -172,6 +173,32 @@ function reorderImages(
     ...image,
     sort_order: index,
   }));
+}
+
+function resolvePrimaryFlags(
+  images: Array<{
+    id: string;
+    is_primary: boolean;
+  }>,
+  imageId: string,
+  nextPrimary?: boolean,
+) {
+  const primaryMap = new Map(images.map((image) => [image.id, image.is_primary]));
+
+  if (nextPrimary === undefined) {
+    return primaryMap;
+  }
+
+  if (nextPrimary) {
+    for (const image of images) {
+      primaryMap.set(image.id, image.id === imageId);
+    }
+
+    return primaryMap;
+  }
+
+  primaryMap.set(imageId, false);
+  return primaryMap;
 }
 
 function toOptionalString(value: unknown) {

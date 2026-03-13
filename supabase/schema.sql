@@ -35,6 +35,7 @@ create table if not exists public.archive_record_images (
   storage_path text not null unique,
   caption text,
   alt_text text,
+  is_primary boolean not null default false,
   sort_order integer not null default 0,
   created_at timestamptz not null default now()
 );
@@ -110,6 +111,7 @@ create table if not exists public.draft_events (
 
 alter table public.telegram_identities alter column telegram_user_id drop not null;
 alter table public.archive_records add column if not exists updated_at timestamptz not null default now();
+alter table public.archive_record_images add column if not exists is_primary boolean not null default false;
 alter table public.archive_records drop constraint if exists archive_records_source_type_check;
 alter table public.archive_records
   add constraint archive_records_source_type_check

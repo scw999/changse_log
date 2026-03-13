@@ -1,35 +1,36 @@
-# 창세록 Internal Ingestion Spec
+# Internal Ingestion Spec
 
-trusted assistant는 아래 순서로 창세록과 상호작용합니다.
+Trusted assistant flow for changse_log:
 
-1. 필요하면 search/recent로 record id 찾기
-2. create 또는 patch 또는 delete 실행
-3. 필요하면 이미지 첨부
-4. 필요하면 이미지 메타데이터 보정
+1. search or inspect recent records when an id is unknown
+2. create, patch, or delete a record
+3. attach images if needed
+4. patch image metadata if needed
 
-## 인증
+## Auth
 
 ```http
 Authorization: Bearer <INTERNAL_INGEST_SECRET>
 ```
 
-또는
+or
 
 ```http
 x-internal-ingest-secret: <INTERNAL_INGEST_SECRET>
 ```
 
-## 공통 원칙
+## Shared Rules
 
-- owner id는 직접 보내지 않습니다.
-- 서버가 `ALLOWED_ADMIN_EMAIL` 기준 owner를 찾아 owner-scoped 작업만 수행합니다.
-- public write/read 용도가 아닙니다.
+- Do not send `owner_id`
+- Server resolves the owner from `ALLOWED_ADMIN_EMAIL`
+- All operations remain owner-scoped
+- Public writes are never allowed
 
 ## Search
 
 - `POST /api/internal/archive-records/search`
 
-예시:
+Example:
 
 ```json
 {
@@ -39,7 +40,7 @@ x-internal-ingest-secret: <INTERNAL_INGEST_SECRET>
 }
 ```
 
-검색 범위:
+Search fields:
 
 - `title`
 - `summary`
@@ -52,16 +53,20 @@ x-internal-ingest-secret: <INTERNAL_INGEST_SECRET>
 
 - `GET /api/internal/archive-records/recent?limit=10`
 
-정렬:
+Sort:
 
 - `updated_at desc`
 - `created_at desc`
 
-## Patch
+## Create
+
+- `POST /api/internal/archive-ingest`
+
+## Patch Record
 
 - `PATCH /api/internal/archive-records/[id]`
 
-영화 제목 교정 예시:
+Movie correction example:
 
 ```json
 {
@@ -72,58 +77,66 @@ x-internal-ingest-secret: <INTERNAL_INGEST_SECRET>
 }
 ```
 
-## Delete
+## Delete Record
 
 - `DELETE /api/internal/archive-records/[id]`
 
-동작:
+Behavior:
 
-1. owner-scoped record 확인
-2. 연결된 이미지 storage object 삭제
-3. image metadata row 삭제
-4. record 삭제
+1. verify owner-scoped record
+2. remove linked storage objects
+3. remove image metadata rows
+4. remove the record row
 
-## Image Attach
+## Attach Image
 
 - `POST /api/internal/archive-records/[id]/images`
 
-폼 필드:
+Form fields:
 
 - `file`
 - `caption`
 - `alt_text`
 - `sort_order`
+- `is_primary`
 
-## Image Metadata Patch
+If `is_primary=true`, the uploaded image becomes the representative image. This does not change gallery order unless `sort_order` is also set.
+
+## Patch Image Metadata
 
 - `PATCH /api/internal/archive-records/[id]/images/[imageId]`
 
-지원 필드:
+Supported fields:
 
 - `caption`
 - `alt_text`
 - `sort_order`
 - `is_primary`
 
-예시:
+Representative image and gallery order are independent:
+
+- `sort_order` changes gallery position
+- `is_primary` changes thumbnail / representative selection
+- setting `is_primary=true` does not force `sort_order=0`
+
+Example:
 
 ```json
 {
-  "caption": "영화 포스터",
-  "alt_text": "스픽 노 이블 포스터",
+  "caption": "자전거 두 대 있는 사진",
   "is_primary": true
 }
 ```
 
-대표 이미지 규칙:
+Expected effect:
 
-- 별도 DB 컬럼 없이 가장 앞 `sort_order` 이미지를 대표 이미지로 간주합니다.
-- `is_primary: true` 는 해당 이미지를 맨 앞으로 재배치합니다.
+- gallery order stays the same
+- the chosen image becomes the representative thumbnail
 
-## 상태 코드
+## Status Codes
 
-- `200`: 성공
-- `400`: payload 오류
-- `401`: secret 불일치
-- `404`: 대상 없음 또는 owner 불일치
-- `503`: 환경 변수 미설정
+- `200`: success
+- `400`: invalid payload or failed write
+- `401`: secret mismatch
+- `404`: record/image not found within owner scope
+- `503`: required environment is missing
