@@ -14,10 +14,13 @@ import {
   createActivityDetails,
   createContentDetails,
   createEmptyRecord,
+  moveImageToOrder,
+  normalizeImages,
   createPlaceDetails,
   createThoughtDetails,
   createWordDetails,
   normalizeTags,
+  setPrimaryImage,
 } from "@/lib/archive/utils";
 
 const ratingOptions = ["0.5", "1", "1.5", "2", "2.5", "3", "3.5", "4", "4.5", "5"];
@@ -146,7 +149,7 @@ export function AdminEditor() {
       setDraft((current) => ({
         ...current,
         id: recordId,
-        images: [...(current.images ?? []), ...uploaded].sort((a, b) => a.sortOrder - b.sortOrder),
+        images: normalizeImages([...(current.images ?? []), ...uploaded]),
       }));
       setMessage(`${uploaded.length}개의 이미지를 업로드했습니다.`);
     } catch (error) {
@@ -176,34 +179,33 @@ export function AdminEditor() {
   function updateImage(imageId: string, patch: Partial<ArchiveImage>) {
     setDraft((current) => ({
       ...current,
-      images: (current.images ?? []).map((image) =>
-        image.id === imageId ? { ...image, ...patch } : image,
+      images: normalizeImages(
+        (current.images ?? []).map((image) => (image.id === imageId ? { ...image, ...patch } : image)),
       ),
     }));
   }
 
   function moveImage(imageId: string, direction: "left" | "right") {
     setDraft((current) => {
-      const images = [...(current.images ?? [])];
+      const images = current.images ?? [];
       const index = images.findIndex((image) => image.id === imageId);
 
       if (index < 0) {
         return current;
       }
 
-      const nextIndex = direction === "left" ? index - 1 : index + 1;
-      if (nextIndex < 0 || nextIndex >= images.length) {
-        return current;
-      }
-
-      const [target] = images.splice(index, 1);
-      images.splice(nextIndex, 0, target);
-
       return {
         ...current,
-        images: images.map((image, sortIndex) => ({ ...image, sortOrder: sortIndex })),
+        images: moveImageToOrder(images, imageId, index + (direction === "left" ? -1 : 1)),
       };
     });
+  }
+
+  function setRepresentativeImage(imageId: string) {
+    setDraft((current) => ({
+      ...current,
+      images: setPrimaryImage(current.images ?? [], imageId),
+    }));
   }
 
   async function saveImages() {
@@ -212,7 +214,7 @@ export function AdminEditor() {
     }
 
     try {
-      await updateImages(draft.id, draft.images);
+      await updateImages(draft.id, normalizeImages(draft.images));
       setMessage("이미지 메타데이터와 정렬 순서를 저장했습니다.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "이미지 정보 저장 중 오류가 발생했습니다.");
@@ -465,6 +467,11 @@ export function AdminEditor() {
                           className="object-cover"
                           sizes="(max-width: 768px) 100vw, 50vw"
                         />
+                        {image.isPrimary ? (
+                          <span className="absolute left-3 top-3 rounded-full bg-black/70 px-2.5 py-1 text-[11px] text-white">
+                            대표 이미지
+                          </span>
+                        ) : null}
                       </div>
 
                       <div className="mt-3 space-y-3">
@@ -496,7 +503,18 @@ export function AdminEditor() {
                           >
                             오른쪽
                           </button>
-                          {isRemote ? (
+                            <button
+                              type="button"
+                              onClick={() => setRepresentativeImage(image.id)}
+                              className={`rounded-full border px-3 py-2 text-xs ${
+                                image.isPrimary
+                                  ? "border-amber-200 bg-amber-50 text-amber-800"
+                                  : "border-stone-200 bg-white text-stone-600"
+                              }`}
+                            >
+                              {image.isPrimary ? "대표 이미지" : "대표로 지정"}
+                            </button>
+                            {isRemote ? (
                             <button
                               type="button"
                               onClick={() => void handleRemoveImage(image.id)}

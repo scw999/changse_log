@@ -113,7 +113,7 @@ export async function listOwnedRecordImages(recordId: string) {
   const admin = createSupabaseAdminClient();
   const { data, error } = await admin
     .from(IMAGES_TABLE)
-    .select("id, storage_path")
+    .select("id, record_id, storage_path, caption, alt_text, sort_order, created_at")
     .eq("owner_id", ownerId)
     .eq("record_id", recordId);
 
@@ -123,7 +123,15 @@ export async function listOwnedRecordImages(recordId: string) {
 
   return {
     ownerId,
-    images: (data ?? []) as Array<{ id: string; storage_path: string }>,
+    images: (data ?? []) as Array<{
+      id: string;
+      record_id: string;
+      storage_path: string;
+      caption: string | null;
+      alt_text: string | null;
+      sort_order: number;
+      created_at: string;
+    }>,
   };
 }
 

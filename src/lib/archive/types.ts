@@ -69,6 +69,7 @@ export interface ArchiveImage {
   caption?: string;
   altText?: string;
   sortOrder: number;
+  isPrimary?: boolean;
   createdAt?: string;
 }
 

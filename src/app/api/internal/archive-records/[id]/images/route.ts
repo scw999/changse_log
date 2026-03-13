@@ -82,6 +82,7 @@ export async function POST(
         caption: data.caption ?? undefined,
         altText: data.alt_text ?? undefined,
         sortOrder: data.sort_order,
+        isPrimary: data.sort_order === 0,
         createdAt: data.created_at,
       },
     });

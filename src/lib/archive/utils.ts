@@ -1,6 +1,7 @@
 import { CATEGORY_META, IMPORTANCE_LABELS, SOURCE_LABELS } from "@/lib/archive/config";
 import {
   ActivityDetails,
+  ArchiveImage,
   ArchiveRecord,
   CategoryKey,
   ContentDetails,
@@ -311,4 +312,54 @@ export function getTypeSpecificHeadline(record: ArchiveRecord) {
   }
 
   return "";
+}
+
+export function normalizeImages(images: ArchiveImage[] = []) {
+  return [...images]
+    .sort((left, right) => {
+      if (left.sortOrder !== right.sortOrder) {
+        return left.sortOrder - right.sortOrder;
+      }
+
+      return (left.createdAt ?? "").localeCompare(right.createdAt ?? "");
+    })
+    .map((image, index) => ({
+      ...image,
+      sortOrder: index,
+      isPrimary: index === 0,
+    }));
+}
+
+export function getRepresentativeImage(record: Pick<ArchiveRecord, "images">) {
+  const images = normalizeImages(record.images ?? []);
+  return images[0] ?? null;
+}
+
+export function setPrimaryImage(images: ArchiveImage[], imageId: string) {
+  const ordered = normalizeImages(images);
+  const targetIndex = ordered.findIndex((image) => image.id === imageId);
+
+  if (targetIndex <= 0) {
+    return ordered;
+  }
+
+  const next = [...ordered];
+  const [target] = next.splice(targetIndex, 1);
+  next.unshift(target);
+  return normalizeImages(next);
+}
+
+export function moveImageToOrder(images: ArchiveImage[], imageId: string, nextOrder: number) {
+  const ordered = normalizeImages(images);
+  const currentIndex = ordered.findIndex((image) => image.id === imageId);
+
+  if (currentIndex < 0) {
+    return ordered;
+  }
+
+  const bounded = Math.max(0, Math.min(nextOrder, ordered.length - 1));
+  const next = [...ordered];
+  const [target] = next.splice(currentIndex, 1);
+  next.splice(bounded, 0, target);
+  return normalizeImages(next);
 }

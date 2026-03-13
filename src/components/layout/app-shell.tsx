@@ -51,13 +51,12 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
                 <p className="text-xs uppercase tracking-[0.34em] text-stone-500">Private Archive</p>
                 <h1 className="mt-4 font-display text-[2.15rem] leading-none text-stone-950">창세록</h1>
                 <p className="mt-4 text-sm leading-7 text-stone-600">
-                  삶의 기록을 구조화해서 저장하고, 다시 꺼내 읽고, 연결을 발견하는 개인 아카이브.
+                  삶의 기록을 구조화해 저장하고, 다시 읽고 연결을 발견하는 개인 아카이브입니다.
                 </p>
                 <div className="mt-6 soft-panel px-4 py-4">
-                  <p className="text-xs uppercase tracking-[0.3em] text-stone-500">Phase 1</p>
+                  <p className="text-xs uppercase tracking-[0.3em] text-stone-500">Archive Direction</p>
                   <p className="mt-2 text-sm leading-6 text-stone-700">
-                    시드 데이터와 브라우저 저장소 기반으로 동작하며, 이후 Supabase 저장소로
-                    자연스럽게 확장할 수 있게 설계했습니다.
+                    웹에서는 탐색과 편집을, 창세봇과 internal API는 정리된 기록의 안전한 저장과 보정을 담당합니다.
                   </p>
                 </div>
               </div>
@@ -92,7 +91,7 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
                 <p className="text-xs uppercase tracking-[0.3em] text-stone-500">Current Size</p>
                 <p className="mt-3 font-display text-3xl text-stone-950">{records.length}개</p>
                 <p className="mt-2 text-sm leading-6 text-stone-600">
-                  생각, 단어, 콘텐츠, 장소, 활동 기록이 한 흐름 안에서 같이 탐색됩니다.
+                  생각, 단어, 콘텐츠, 장소, 활동 기록을 한 흐름 안에서 같이 탐색합니다.
                 </p>
                 <div className="mt-4 flex flex-wrap gap-2">
                   {isAuthenticated ? (
@@ -121,9 +120,7 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
                     </Link>
                   )}
                 </div>
-                {userEmail ? (
-                  <p className="mt-3 truncate text-xs text-stone-500">{userEmail}</p>
-                ) : null}
+                {userEmail ? <p className="mt-3 truncate text-xs text-stone-500">{userEmail}</p> : null}
               </div>
             </div>
           </aside>
@@ -132,9 +129,7 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
             <header className="panel px-4 py-4 sm:px-5 lg:hidden">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="text-[11px] uppercase tracking-[0.3em] text-stone-500">
-                    Private Archive
-                  </p>
+                  <p className="text-[11px] uppercase tracking-[0.3em] text-stone-500">Private Archive</p>
                   <h1 className="mt-2 break-keep font-display text-[2rem] leading-none text-stone-950">
                     창세록
                   </h1>
@@ -143,6 +138,10 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
                   {records.length}개
                 </div>
               </div>
+
+              <p className="mt-3 text-sm leading-6 text-stone-600">
+                개인 기록을 저장하고 다시 이어 보는 private archive.
+              </p>
 
               <div className="mt-3 flex flex-wrap gap-2">
                 {isAuthenticated ? (

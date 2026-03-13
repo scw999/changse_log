@@ -14,7 +14,7 @@ import {
 } from "@/lib/archive/supabase-store";
 import { readRecordsFromStorage, writeRecordsToStorage } from "@/lib/archive/storage";
 import { ArchiveContextValue, ArchiveRecord } from "@/lib/archive/types";
-import { sortRecords } from "@/lib/archive/utils";
+import { normalizeImages, sortRecords } from "@/lib/archive/utils";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 
@@ -198,19 +198,21 @@ export function ArchiveProvider({ children }: Readonly<{ children: React.ReactNo
         const existingImages = targetRecord?.images ?? [];
         const uploaded = await uploadRemoteRecordImages(client, user, recordId, existingImages, files);
         await refreshRemote(user);
-        return uploaded;
+        return normalizeImages(uploaded);
       },
       updateImages: async (recordId, images) => {
+        const normalized = normalizeImages(images);
+
         if (user && isSupabaseConfigured()) {
           const client = createSupabaseBrowserClient();
-          await syncRemoteRecordImages(client, user, recordId, images);
+          await syncRemoteRecordImages(client, user, recordId, normalized);
           await refreshRemote(user);
           return;
         }
 
         setLocalRecords(
           records.map((record) =>
-            record.id === recordId ? { ...record, images } : record,
+            record.id === recordId ? { ...record, images: normalized } : record,
           ),
         );
       },

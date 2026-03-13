@@ -2,27 +2,70 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowLeft, CalendarDays, MapPin, NotebookPen, Star, Tags } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import {
+  ArrowLeft,
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  MapPin,
+  NotebookPen,
+  Star,
+  Tags,
+  X,
+} from "lucide-react";
 
 import { PageHeader } from "@/components/ui/page-header";
 import { RatingStars } from "@/components/ui/rating-stars";
 import { SectionCard } from "@/components/ui/section-card";
 import { useArchive } from "@/lib/archive/context";
+import { ArchiveImage } from "@/lib/archive/types";
 import {
   formatDate,
   getImportanceLabel,
   getRecordArea,
   getRecordRating,
   getSourceLabel,
+  normalizeImages,
 } from "@/lib/archive/utils";
 
 export function RecordDetailView({ id }: Readonly<{ id: string }>) {
   const { records, isReady } = useArchive();
   const record = records.find((item) => item.id === id);
+  const images = useMemo(() => normalizeImages(record?.images ?? []), [record?.images]);
+  const [activeImageIndex, setActiveImageIndex] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (activeImageIndex === null) {
+      return;
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setActiveImageIndex(null);
+        return;
+      }
+
+      if (event.key === "ArrowLeft") {
+        setActiveImageIndex((current) =>
+          current === null ? current : (current - 1 + images.length) % images.length,
+        );
+      }
+
+      if (event.key === "ArrowRight") {
+        setActiveImageIndex((current) =>
+          current === null ? current : (current + 1) % images.length,
+        );
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [activeImageIndex, images.length]);
 
   if (!isReady && !record) {
     return (
-      <SectionCard title="기록 불러오는 중" description="저장된 아카이브를 읽고 있습니다.">
+      <SectionCard title="기록을 불러오는 중" description="저장된 아카이브를 확인하고 있습니다.">
         <div className="soft-panel h-80 animate-pulse" />
       </SectionCard>
     );
@@ -32,7 +75,7 @@ export function RecordDetailView({ id }: Readonly<{ id: string }>) {
     return (
       <SectionCard
         title="기록을 찾을 수 없습니다"
-        description="삭제되었거나 아직 로컬 저장소가 로드되지 않았을 수 있습니다."
+        description="삭제되었거나 아직 로딩이 완료되지 않았습니다."
       >
         <Link
           href="/recent"
@@ -49,11 +92,7 @@ export function RecordDetailView({ id }: Readonly<{ id: string }>) {
 
   return (
     <div className="space-y-5">
-      <PageHeader
-        eyebrow={`${record.subcategory} Record`}
-        title={record.title}
-        description={record.summary}
-      >
+      <PageHeader eyebrow={`${record.subcategory} Record`} title={record.title} description={record.summary}>
         <div className="rounded-[28px] border border-white/80 bg-white/80 px-4 py-4 shadow-sm">
           <Link
             href="/recent"
@@ -71,12 +110,12 @@ export function RecordDetailView({ id }: Readonly<{ id: string }>) {
           <div className="space-y-4">
             <DetailItem
               icon={<CalendarDays className="h-4 w-4" />}
-              label="사건일"
+              label="이벤트 날짜"
               value={formatDate(record.eventDate)}
             />
             <DetailItem
               icon={<NotebookPen className="h-4 w-4" />}
-              label="저장 출처"
+              label="저장 경로"
               value={getSourceLabel(record)}
             />
             <DetailItem
@@ -106,7 +145,7 @@ export function RecordDetailView({ id }: Readonly<{ id: string }>) {
           </div>
         </SectionCard>
 
-        <SectionCard title="본문과 요약" description="승인되어 저장된 구조화 텍스트">
+        <SectionCard title="본문과 요약" description="정리된 텍스트 기록">
           <div className="space-y-5">
             <div className="rounded-[24px] border border-stone-100 bg-stone-50/80 px-5 py-5">
               <p className="text-xs uppercase tracking-[0.3em] text-stone-500">Summary</p>
@@ -126,11 +165,16 @@ export function RecordDetailView({ id }: Readonly<{ id: string }>) {
         </SectionCard>
       </div>
 
-      {record.images && record.images.length > 0 ? (
-        <SectionCard title="이미지" description="이 기록에 연결된 사진과 스크린샷">
+      {images.length > 0 ? (
+        <SectionCard title="이미지" description="저장된 사진과 스크린샷">
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {record.images.map((image) => (
-              <div key={image.id} className="rounded-[24px] border border-stone-100 bg-white/80 p-3">
+            {images.map((image, index) => (
+              <button
+                key={image.id}
+                type="button"
+                onClick={() => setActiveImageIndex(index)}
+                className="rounded-[24px] border border-stone-100 bg-white/80 p-3 text-left transition hover:-translate-y-0.5"
+              >
                 <div className="relative aspect-[4/3] overflow-hidden rounded-[18px] bg-stone-100">
                   <Image
                     src={image.url}
@@ -139,11 +183,16 @@ export function RecordDetailView({ id }: Readonly<{ id: string }>) {
                     className="object-cover"
                     sizes="(max-width: 768px) 100vw, 33vw"
                   />
+                  {image.isPrimary ? (
+                    <span className="absolute left-3 top-3 rounded-full bg-black/70 px-2.5 py-1 text-[11px] text-white">
+                      대표 이미지
+                    </span>
+                  ) : null}
                 </div>
                 {image.caption ? (
                   <p className="mt-3 text-sm leading-6 text-stone-600">{image.caption}</p>
                 ) : null}
-              </div>
+              </button>
             ))}
           </div>
         </SectionCard>
@@ -177,7 +226,7 @@ export function RecordDetailView({ id }: Readonly<{ id: string }>) {
       ) : null}
 
       {record.content ? (
-        <SectionCard title="콘텐츠 상세" description="감상과 재감상 의도를 함께 남긴 기록">
+        <SectionCard title="콘텐츠 상세" description="감상과 재방문 의도를 담은 기록">
           <DetailGrid
             items={[
               ["콘텐츠 유형", record.content.contentType],
@@ -212,7 +261,7 @@ export function RecordDetailView({ id }: Readonly<{ id: string }>) {
       ) : null}
 
       {record.activity ? (
-        <SectionCard title="활동 상세" description="운동 및 트래킹 로그 상세">
+        <SectionCard title="활동 상세" description="운동과 트래킹 기록">
           <DetailGrid
             items={[
               ["활동 유형", record.activity.activityType],
@@ -227,6 +276,22 @@ export function RecordDetailView({ id }: Readonly<{ id: string }>) {
           />
         </SectionCard>
       ) : null}
+
+      <ImageLightbox
+        images={images}
+        activeIndex={activeImageIndex}
+        onClose={() => setActiveImageIndex(null)}
+        onPrev={() =>
+          setActiveImageIndex((current) =>
+            current === null ? current : (current - 1 + images.length) % images.length,
+          )
+        }
+        onNext={() =>
+          setActiveImageIndex((current) =>
+            current === null ? current : (current + 1) % images.length,
+          )
+        }
+      />
     </div>
   );
 }
@@ -256,6 +321,88 @@ function DetailGrid({ items }: Readonly<{ items: Array<[string, string]> }>) {
           <p className="mt-3 whitespace-pre-line text-sm leading-7 text-stone-700">{value}</p>
         </div>
       ))}
+    </div>
+  );
+}
+
+function ImageLightbox({
+  images,
+  activeIndex,
+  onClose,
+  onPrev,
+  onNext,
+}: Readonly<{
+  images: ArchiveImage[];
+  activeIndex: number | null;
+  onClose: () => void;
+  onPrev: () => void;
+  onNext: () => void;
+}>) {
+  if (activeIndex === null || !images[activeIndex]) {
+    return null;
+  }
+
+  const activeImage = images[activeIndex];
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 px-4 py-6"
+      onClick={onClose}
+    >
+      <div
+        className="relative flex max-h-full w-full max-w-5xl flex-col gap-4"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="flex items-center justify-between gap-3 text-white">
+          <div>
+            <p className="text-sm font-medium">{activeImage.caption || "첨부 이미지"}</p>
+            <p className="text-xs text-white/70">
+              {activeIndex + 1} / {images.length}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-full border border-white/20 bg-white/10 p-2 text-white"
+            aria-label="이미지 닫기"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="relative overflow-hidden rounded-[28px] bg-stone-950">
+          <div className="relative aspect-[4/3] max-h-[75vh] w-full">
+            <Image
+              src={activeImage.url}
+              alt={activeImage.altText || activeImage.caption || "첨부 이미지"}
+              fill
+              className="object-contain"
+              sizes="100vw"
+            />
+          </div>
+
+          {images.length > 1 ? (
+            <>
+              <button
+                type="button"
+                onClick={onPrev}
+                className="absolute left-3 top-1/2 -translate-y-1/2 rounded-full border border-white/20 bg-black/45 p-2 text-white"
+                aria-label="이전 이미지"
+              >
+                <ChevronLeft className="h-5 w-5" />
+              </button>
+              <button
+                type="button"
+                onClick={onNext}
+                className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full border border-white/20 bg-black/45 p-2 text-white"
+                aria-label="다음 이미지"
+              >
+                <ChevronRight className="h-5 w-5" />
+              </button>
+            </>
+          ) : null}
+        </div>
+      </div>
     </div>
   );
 }

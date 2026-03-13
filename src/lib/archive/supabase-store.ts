@@ -1,7 +1,7 @@
 import type { SupabaseClient, User } from "@supabase/supabase-js";
 
 import { ArchiveImage, ArchiveRecord } from "@/lib/archive/types";
-import { getPrimaryDate, normalizeRecord, sortRecords } from "@/lib/archive/utils";
+import { getPrimaryDate, normalizeImages, normalizeRecord, sortRecords } from "@/lib/archive/utils";
 
 const RECORDS_TABLE = "archive_records";
 const IMAGES_TABLE = "archive_record_images";
@@ -148,7 +148,7 @@ export async function uploadRemoteRecordImages(
   }
 
   const hydrated = await hydrateImageUrls(client, uploadedRows);
-  return hydrated.map((entry) => entry.image);
+  return normalizeImages(hydrated.map((entry) => entry.image));
 }
 
 export async function deleteRemoteImage(
@@ -250,7 +250,7 @@ function rowToRecord(row: RecordRow, images: ArchiveImage[]): ArchiveRecord {
     sourceType: row.source_type,
     summary: row.summary ?? "",
     notes: row.notes ?? undefined,
-    images,
+    images: normalizeImages(images),
     thought: details.thought,
     word: details.word,
     content: content as ArchiveRecord["content"],
@@ -281,6 +281,7 @@ async function hydrateImageUrls(client: SupabaseClient, rows: ImageRow[]) {
       caption: row.caption ?? undefined,
       altText: row.alt_text ?? undefined,
       sortOrder: row.sort_order,
+      isPrimary: false,
       createdAt: row.created_at,
     },
   }));

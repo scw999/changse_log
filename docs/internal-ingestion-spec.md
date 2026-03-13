@@ -1,10 +1,13 @@
 # 창세록 Internal Ingestion Spec
 
-이 문서는 trusted assistant가 창세록에 기록을 생성, 검색, 최근 조회, 수정, 삭제, 이미지 첨부할 때 사용하는 internal API 규격입니다.
+trusted assistant는 아래 순서로 창세록과 상호작용합니다.
+
+1. 필요하면 search/recent로 record id 찾기
+2. create 또는 patch 또는 delete 실행
+3. 필요하면 이미지 첨부
+4. 필요하면 이미지 메타데이터 보정
 
 ## 인증
-
-다음 둘 중 하나를 사용합니다.
 
 ```http
 Authorization: Bearer <INTERNAL_INGEST_SECRET>
@@ -16,32 +19,13 @@ Authorization: Bearer <INTERNAL_INGEST_SECRET>
 x-internal-ingest-secret: <INTERNAL_INGEST_SECRET>
 ```
 
-권장 방식은 Bearer token입니다.
-
 ## 공통 원칙
 
-- 사용자 승인 후에만 호출합니다.
-- owner id는 payload로 보내지 않습니다.
-- 서버가 `ALLOWED_ADMIN_EMAIL` 기준으로 owner를 찾아 owner-scoped 작업만 수행합니다.
-- 다른 사용자 데이터에 대한 검색/조회/수정/삭제/write는 허용하지 않습니다.
+- owner id는 직접 보내지 않습니다.
+- 서버가 `ALLOWED_ADMIN_EMAIL` 기준 owner를 찾아 owner-scoped 작업만 수행합니다.
+- public write/read 용도가 아닙니다.
 
-## 1. Create
-
-- `POST /api/internal/archive-ingest`
-
-최소 예시:
-
-```json
-{
-  "title": "간단 메모",
-  "body": "정리된 본문",
-  "category": "thoughts",
-  "subcategory": "메모",
-  "summary": "짧은 요약"
-}
-```
-
-## 2. Search
+## Search
 
 - `POST /api/internal/archive-records/search`
 
@@ -55,7 +39,7 @@ x-internal-ingest-secret: <INTERNAL_INGEST_SECRET>
 }
 ```
 
-검색 대상:
+검색 범위:
 
 - `title`
 - `summary`
@@ -64,68 +48,18 @@ x-internal-ingest-secret: <INTERNAL_INGEST_SECRET>
 - `details.content.titleOriginal`
 - `details.content.originalTitle`
 
-응답 예시:
-
-```json
-{
-  "ok": true,
-  "results": [
-    {
-      "id": "record-id",
-      "title": "영화 기록: 스픽 노 모어",
-      "summary": "불편한 긴장감을 남긴 영화 기록",
-      "category": "content",
-      "subcategory": "영화",
-      "event_date": "2026-03-12",
-      "created_at": "2026-03-12T10:00:00.000Z",
-      "updated_at": "2026-03-12T10:00:00.000Z",
-      "source_type": "assistant",
-      "details": {
-        "content": {
-          "originalTitle": "Speak No Evil"
-        }
-      }
-    }
-  ]
-}
-```
-
-## 3. Recent
+## Recent
 
 - `GET /api/internal/archive-records/recent?limit=10`
-
-용도:
-
-- “방금 저장한 거”
-- “최근 영화”
-- “어제 올린 장소”
 
 정렬:
 
 - `updated_at desc`
 - `created_at desc`
 
-## 4. Patch
+## Patch
 
 - `PATCH /api/internal/archive-records/[id]`
-
-지원 필드:
-
-- `title`
-- `body`
-- `category`
-- `subcategory`
-- `tags`
-- `summary`
-- `notes`
-- `event_date`
-- `importance`
-- `details`
-- `thought`
-- `word`
-- `content`
-- `place`
-- `activity`
 
 영화 제목 교정 예시:
 
@@ -138,88 +72,58 @@ x-internal-ingest-secret: <INTERNAL_INGEST_SECRET>
 }
 ```
 
-참고:
-
-- assistant가 `content.originalTitle` 로 보내도 서버가 `titleOriginal` 과 호환되게 정규화합니다.
-
-## 5. Delete
+## Delete
 
 - `DELETE /api/internal/archive-records/[id]`
 
-응답 예시:
-
-```json
-{
-  "ok": true,
-  "deleted": {
-    "id": "record-id",
-    "title": "테스트 메모"
-  }
-}
-```
-
-삭제 동작:
+동작:
 
 1. owner-scoped record 확인
-2. 연결된 image row 조회
-3. `record-images` bucket object 삭제
-4. `archive_record_images` row 삭제
-5. `archive_records` row 삭제
+2. 연결된 이미지 storage object 삭제
+3. image metadata row 삭제
+4. record 삭제
 
-## 6. Image Attach
+## Image Attach
 
 - `POST /api/internal/archive-records/[id]/images`
 
-요청 형식:
-
-- `multipart/form-data`
-
-필수:
+폼 필드:
 
 - `file`
-
-선택:
-
 - `caption`
 - `alt_text`
 - `sort_order`
 
+## Image Metadata Patch
+
+- `PATCH /api/internal/archive-records/[id]/images/[imageId]`
+
+지원 필드:
+
+- `caption`
+- `alt_text`
+- `sort_order`
+- `is_primary`
+
 예시:
 
-```bash
-curl -X POST https://changselog.vercel.app/api/internal/archive-records/<record-id>/images \
-  -H "Authorization: Bearer <INTERNAL_INGEST_SECRET>" \
-  -F "file=@/path/to/image.jpg" \
-  -F "caption=기록용 사진" \
-  -F "alt_text=기록 상세 이미지" \
-  -F "sort_order=0"
+```json
+{
+  "caption": "영화 포스터",
+  "alt_text": "스픽 노 이블 포스터",
+  "is_primary": true
+}
 ```
 
-## 실전 Search -> Patch
+대표 이미지 규칙:
 
-사용자 요청:
-
-> 스픽 노 모어로 된 영화 기록 찾아서 제목을 스픽 노 이블로 바꾸고 원제를 Speak No Evil로 수정해
-
-처리 순서:
-
-1. `POST /api/internal/archive-records/search`
-2. 결과에서 record id 확인
-3. `PATCH /api/internal/archive-records/[id]`
-
-## 실전 Search -> Delete
-
-테스트 기록 삭제 예시:
-
-1. `POST /api/internal/archive-records/search`
-   - query: `internal ingest test`
-2. 결과에서 record id 확인
-3. `DELETE /api/internal/archive-records/[id]`
+- 별도 DB 컬럼 없이 가장 앞 `sort_order` 이미지를 대표 이미지로 간주합니다.
+- `is_primary: true` 는 해당 이미지를 맨 앞으로 재배치합니다.
 
 ## 상태 코드
 
 - `200`: 성공
 - `400`: payload 오류
 - `401`: secret 불일치
-- `404`: record 없음 또는 owner 불일치
-- `503`: 서버 환경 변수 미설정
+- `404`: 대상 없음 또는 owner 불일치
+- `503`: 환경 변수 미설정
