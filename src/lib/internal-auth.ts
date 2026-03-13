@@ -2,6 +2,7 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { allowedAdminEmail, internalIngestSecret, isInternalIngestConfigured } from "@/lib/supabase/env";
 
 const RECORDS_TABLE = "archive_records";
+const IMAGES_TABLE = "archive_record_images";
 
 type ArchiveRecordLookup = {
   id: string;
@@ -104,6 +105,25 @@ export async function listOwnedArchiveRecords(options?: {
   return {
     ownerId,
     records: (data ?? []) as ArchiveRecordLookup[],
+  };
+}
+
+export async function listOwnedRecordImages(recordId: string) {
+  const ownerId = await resolveAllowedOwnerId();
+  const admin = createSupabaseAdminClient();
+  const { data, error } = await admin
+    .from(IMAGES_TABLE)
+    .select("id, storage_path")
+    .eq("owner_id", ownerId)
+    .eq("record_id", recordId);
+
+  if (error) {
+    throw error;
+  }
+
+  return {
+    ownerId,
+    images: (data ?? []) as Array<{ id: string; storage_path: string }>,
   };
 }
 

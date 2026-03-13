@@ -13,7 +13,8 @@
 3. assistant가 `POST /api/internal/archive-records/search` 로 기존 기록 검색
 4. assistant가 `GET /api/internal/archive-records/recent` 로 최근 기록 조회
 5. assistant가 `PATCH /api/internal/archive-records/[id]` 로 기존 기록 수정
-6. 웹 관리자 또는 assistant가 기록에 이미지 첨부
+6. assistant가 `DELETE /api/internal/archive-records/[id]` 로 잘못된 기록 삭제
+7. 웹 관리자 또는 assistant가 기록에 이미지 첨부
 
 ## 기술 스택
 
@@ -202,6 +203,35 @@ x-internal-ingest-secret: <INTERNAL_INGEST_SECRET>
 - 필수: `file`
 - 선택: `caption`, `alt_text`, `sort_order`
 
+### 6. 기존 기록 삭제
+
+- `DELETE /api/internal/archive-records/[id]`
+
+용도:
+
+- 잘못 저장된 assistant 테스트 기록 제거
+- 제목/요약 확인 후 명시적 삭제
+
+응답 예시:
+
+```json
+{
+  "ok": true,
+  "deleted": {
+    "id": "ba782563-85ee-491c-b49e-8e548d8eccab",
+    "title": "테스트 메모"
+  }
+}
+```
+
+삭제 동작:
+
+1. owner 소유 record 확인
+2. 연결된 `archive_record_images` 조회
+3. `record-images` bucket object 삭제
+4. image metadata row 삭제
+5. `archive_records` row 삭제
+
 ## Search -> Patch 예시
 
 assistant가 이런 요청을 받았다고 가정합니다.
@@ -281,6 +311,13 @@ curl -X PATCH https://changselog.vercel.app/api/internal/archive-records/<record
   -H "Authorization: Bearer <INTERNAL_INGEST_SECRET>" \
   -H "Content-Type: application/json" \
   -d '{"title":"영화 기록: 스픽 노 이블","content":{"originalTitle":"Speak No Evil"}}'
+```
+
+### 찾은 기록 delete
+
+```bash
+curl -X DELETE https://changselog.vercel.app/api/internal/archive-records/<record-id> \
+  -H "Authorization: Bearer <INTERNAL_INGEST_SECRET>"
 ```
 
 ## 웹 관리자 이미지 업로드
