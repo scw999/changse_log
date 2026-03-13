@@ -59,8 +59,8 @@ export function RecordExplorer({
   return (
     <div className="space-y-5">
       <SectionCard
-        title="Search and filters"
-        description="Trim the archive down quickly with text search, sort, month, tag, area, rating, and revisit signals."
+        title="검색과 필터"
+        description="검색어, 정렬, 월, 태그, 지역, 평점, 다시 보기 조건으로 기록을 빠르게 좁혀보세요."
       >
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
           <label className="xl:col-span-2">
@@ -70,29 +70,29 @@ export function RecordExplorer({
             <input
               value={filters.search}
               onChange={(event) => updateFilter("search", event.target.value)}
-              placeholder="Title, summary, body, tag, place, word..."
+              placeholder="제목, 요약, 본문, 태그, 장소, 단어 검색"
               className="field"
             />
           </label>
 
           <SelectField
-            label="Sort"
+            label="정렬"
             value={filters.sort}
             onChange={(value) => updateFilter("sort", value as RecordFilterState["sort"])}
             options={[
-              { value: "newest", label: "Newest" },
-              { value: "oldest", label: "Oldest" },
-              { value: "rating", label: "Highest rated" },
-              { value: "importance", label: "Most important" },
+              { value: "newest", label: "최신순" },
+              { value: "oldest", label: "오래된순" },
+              { value: "rating", label: "평점순" },
+              { value: "importance", label: "중요도순" },
             ]}
           />
 
           <SelectField
-            label="Type"
+            label="유형"
             value={filters.subcategory}
             onChange={(value) => updateFilter("subcategory", value)}
             options={[
-              { value: "all", label: "All types" },
+              { value: "all", label: "전체 유형" },
               ...options.subcategories.map((subcategory) => ({
                 value: subcategory,
                 label: subcategory,
@@ -101,11 +101,11 @@ export function RecordExplorer({
           />
 
           <SelectField
-            label="Tag"
+            label="태그"
             value={filters.tag}
             onChange={(value) => updateFilter("tag", value)}
             options={[
-              { value: "all", label: "All tags" },
+              { value: "all", label: "전체 태그" },
               ...options.tags.map((tag) => ({
                 value: tag,
                 label: `#${tag}`,
@@ -114,11 +114,11 @@ export function RecordExplorer({
           />
 
           <SelectField
-            label="Month"
+            label="월"
             value={filters.month}
             onChange={(value) => updateFilter("month", value)}
             options={[
-              { value: "all", label: "All months" },
+              { value: "all", label: "전체 월" },
               ...monthOptions.map((month) => ({
                 value: month,
                 label: month,
@@ -127,26 +127,26 @@ export function RecordExplorer({
           />
 
           <SelectField
-            label="Importance"
+            label="중요도"
             value={filters.importanceMin === null ? "all" : String(filters.importanceMin)}
             onChange={(value) =>
               updateFilter("importanceMin", value === "all" ? null : Number(value))
             }
             options={[
-              { value: "all", label: "Any importance" },
-              { value: "3", label: "3 and up" },
-              { value: "4", label: "4 and up" },
-              { value: "5", label: "Only 5" },
+              { value: "all", label: "전체 중요도" },
+              { value: "3", label: "3 이상" },
+              { value: "4", label: "4 이상" },
+              { value: "5", label: "5만" },
             ]}
           />
 
           {options.areas.length > 0 ? (
             <SelectField
-              label="Area"
+              label="지역"
               value={filters.area}
               onChange={(value) => updateFilter("area", value)}
               options={[
-                { value: "all", label: "All areas" },
+                { value: "all", label: "전체 지역" },
                 ...options.areas.map((area) => ({ value: area, label: area })),
               ]}
             />
@@ -154,16 +154,16 @@ export function RecordExplorer({
 
           {ratedCount > 0 ? (
             <SelectField
-              label="Rating"
+              label="평점"
               value={filters.ratingMin === null ? "all" : String(filters.ratingMin)}
               onChange={(value) =>
                 updateFilter("ratingMin", value === "all" ? null : Number(value))
               }
               options={[
-                { value: "all", label: "Any rating" },
-                { value: "3.5", label: "3.5 and up" },
-                { value: "4", label: "4.0 and up" },
-                { value: "4.5", label: "4.5 and up" },
+                { value: "all", label: "전체 평점" },
+                { value: "3.5", label: "3.5 이상" },
+                { value: "4", label: "4.0 이상" },
+                { value: "4.5", label: "4.5 이상" },
               ]}
             />
           ) : null}
@@ -176,39 +176,39 @@ export function RecordExplorer({
             onChange={(event) => updateFilter("revisitOnly", event.target.checked)}
             className="mt-1 h-4 w-4 rounded border-stone-300 text-stone-900 focus:ring-stone-400"
           />
-          Show only records marked as worth revisiting.
+          다시 보고 싶다고 표시한 기록만 보기
         </label>
 
         {filters.search !== deferredSearch ? (
-          <p className="mt-3 text-xs text-stone-500">Updating results...</p>
+          <p className="mt-3 text-xs text-stone-500">검색 결과를 업데이트하는 중입니다...</p>
         ) : null}
       </SectionCard>
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
-          label="Visible Records"
+          label="보이는 기록"
           value={`${filteredRecords.length}`}
-          note={`Showing ${filteredRecords.length} of ${scopedRecords.length} records in this scope.`}
+          note={`현재 범위 ${scopedRecords.length}개 중 ${filteredRecords.length}개가 표시됩니다.`}
         />
         <StatCard
-          label="High Rated"
+          label="고평점"
           value={`${highRatedCount}`}
-          note="Records with a rating of 4.5 or higher."
+          note="평점 4.5 이상 기록 수입니다."
         />
         <StatCard
-          label="Revisit"
+          label="다시 보기"
           value={`${revisitCount}`}
-          note="Records already marked as worth returning to."
+          note="다시 보고 싶은 기록 수입니다."
         />
         <StatCard
-          label="Tags"
+          label="태그"
           value={`${options.tags.length}`}
-          note="Unique tags available in the current record set."
+          note="현재 범위에서 사용할 수 있는 태그 수입니다."
         />
       </div>
 
       {!isReady ? (
-        <SectionCard title="Loading records" description="The archive is being prepared.">
+        <SectionCard title="기록 불러오는 중" description="아카이브를 준비하고 있습니다.">
           <div className="grid gap-4 xl:grid-cols-2">
             {Array.from({ length: 4 }).map((_, index) => (
               <div key={index} className="soft-panel h-52 animate-pulse" />
@@ -218,7 +218,7 @@ export function RecordExplorer({
       ) : filteredRecords.length === 0 ? (
         <SectionCard title={emptyTitle} description={emptyDescription}>
           <div className="soft-panel px-5 py-5 text-sm leading-7 text-stone-600">
-            No records matched the current filter set. Try removing one or two filters.
+            현재 조건에 맞는 기록이 없습니다. 필터를 조금 완화해 보세요.
           </div>
         </SectionCard>
       ) : (

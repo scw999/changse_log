@@ -39,42 +39,42 @@ export function DashboardView() {
     <div className="space-y-5">
       <PageHeader
         eyebrow="Personal Archive Dashboard"
-        title="A faster view into your personal archive"
-        description="Track thoughts, words, content, places, and activities in one place, then jump directly into the slice you want to review."
+        title="개인 아카이브를 더 빠르게 살펴보는 대시보드"
+        description="생각, 단어, 콘텐츠, 장소, 활동 기록을 한곳에서 보고, 원하는 묶음으로 바로 이동해 다시 살펴볼 수 있습니다."
       />
 
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         <StatCard
-          label="Total Records"
+          label="전체 기록"
           value={`${records.length}`}
-          note="Open the full archive list."
+          note="전체 기록 목록으로 이동합니다."
           href="/recent"
         />
         <StatCard
-          label="This Month"
+          label="이번 달"
           value={`${thisMonthCount}`}
-          note="Jump to records created this month."
+          note="이번 달에 남긴 기록만 바로 봅니다."
           href={`/recent?month=${currentMonth}`}
         />
         <StatCard
-          label="High Rated"
+          label="고평점"
           value={`${highRated.length}`}
-          note="Open records rated 4.5 or higher."
+          note="평점 4.5 이상 기록으로 이동합니다."
           href="/recent?ratingMin=4.5"
         />
         <StatCard
-          label="Revisit"
+          label="다시 보기"
           value={`${revisitCount}`}
-          note="See the records worth revisiting."
+          note="다시 보고 싶은 기록만 모아 봅니다."
           href="/recent?revisitOnly=true"
         />
       </div>
 
       <div className="grid gap-5 xl:grid-cols-[1.15fr_0.85fr]">
         <SectionCard
-          title="Recently added"
-          description="Pick up the latest entries quickly."
-          action={<InlineLink href="/recent" label="See all recent" />}
+          title="최근 추가한 기록"
+          description="가장 최근에 저장한 기록을 빠르게 다시 볼 수 있습니다."
+          action={<InlineLink href="/recent" label="전체 보기" />}
         >
           <div className="grid gap-4 xl:grid-cols-2">
             {recentRecords.map((record) => (
@@ -83,7 +83,7 @@ export function DashboardView() {
           </div>
         </SectionCard>
 
-        <SectionCard title="Categories" description="Move into a focused archive area right away.">
+        <SectionCard title="카테고리" description="원하는 기록 묶음으로 바로 이동합니다.">
           <div className="grid gap-3 sm:grid-cols-2">
             {CATEGORY_ORDER.map((category) => {
               const meta = CATEGORY_META[category];
@@ -107,9 +107,9 @@ export function DashboardView() {
 
       <div className="grid gap-5 xl:grid-cols-[1fr_1fr]">
         <SectionCard
-          title="Recent thoughts"
-          description="Ideas, notes, and reflections worth reopening."
-          action={<InlineLink href="/thoughts" label="Open thoughts" />}
+          title="최근 생각"
+          description="다시 펼쳐보고 싶은 아이디어와 메모, 리플렉션입니다."
+          action={<InlineLink href="/thoughts" label="생각 보기" />}
         >
           <div className="space-y-4">
             {recentThoughts.map((record) => (
@@ -119,9 +119,9 @@ export function DashboardView() {
         </SectionCard>
 
         <SectionCard
-          title="Highly rated"
-          description="Your strongest content, places, or activities in one view."
-          action={<InlineLink href="/recent?ratingMin=4.5" label="Open filtered list" />}
+          title="고평점 기록"
+          description="좋게 남겨둔 콘텐츠, 장소, 활동을 한 번에 모아봅니다."
+          action={<InlineLink href="/recent?ratingMin=4.5" label="필터 목록 보기" />}
         >
           <div className="space-y-4">
             {highRated.map((record) => (
@@ -132,7 +132,7 @@ export function DashboardView() {
       </div>
 
       <div className="grid gap-5 xl:grid-cols-[1fr_1fr_0.9fr]">
-        <SectionCard title="Recent places" description="Places that stood out enough to save.">
+        <SectionCard title="최근 장소" description="기억해두고 싶은 장소 기록입니다.">
           <div className="space-y-4">
             {recentPlaces.map((record) => (
               <RecordCard key={record.id} record={record} compact />
@@ -140,7 +140,7 @@ export function DashboardView() {
           </div>
         </SectionCard>
 
-        <SectionCard title="Recent activities" description="Movement, workouts, and routines at a glance.">
+        <SectionCard title="최근 활동" description="이동, 운동, 루틴 기록을 한눈에 봅니다.">
           <div className="space-y-4">
             {recentActivities.map((record) => (
               <RecordCard key={record.id} record={record} compact />
@@ -148,7 +148,7 @@ export function DashboardView() {
           </div>
         </SectionCard>
 
-        <SectionCard title="Top tags" description="Jump into clusters of related records.">
+        <SectionCard title="자주 쓴 태그" description="관련 기록 묶음으로 빠르게 이동합니다.">
           <div className="flex flex-wrap gap-2">
             {topTags.map(([tag, count]) => (
               <Link
@@ -156,7 +156,7 @@ export function DashboardView() {
                 href={`/recent?tag=${encodeURIComponent(tag)}`}
                 className="rounded-full border border-white/80 bg-white/80 px-3 py-2 text-sm text-stone-700 shadow-sm"
               >
-                #{tag} <span className="text-stone-400">x {count}</span>
+                #{tag} <span className="text-stone-400">· {count}</span>
               </Link>
             ))}
           </div>
