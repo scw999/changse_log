@@ -15,15 +15,23 @@ interface RecordExplorerProps {
   category?: CategoryKey;
   emptyTitle: string;
   emptyDescription: string;
+  initialTag?: string;
+  initialQuery?: string;
 }
 
 export function RecordExplorer({
   category,
   emptyTitle,
   emptyDescription,
+  initialTag,
+  initialQuery,
 }: Readonly<RecordExplorerProps>) {
   const { records, isReady } = useArchive();
-  const [filters, setFilters] = useState<RecordFilterState>(DEFAULT_FILTERS);
+  const [filters, setFilters] = useState<RecordFilterState>(() => ({
+    ...DEFAULT_FILTERS,
+    tag: initialTag && initialTag.trim().length > 0 ? initialTag : "all",
+    search: initialQuery && initialQuery.trim().length > 0 ? initialQuery : "",
+  }));
 
   const deferredSearch = useDeferredValue(filters.search);
   const scopedRecords = category ? records.filter((record) => record.category === category) : records;
@@ -145,7 +153,7 @@ export function RecordExplorer({
             onChange={(event) => updateFilter("revisitOnly", event.target.checked)}
             className="mt-1 h-4 w-4 rounded border-stone-300 text-stone-900 focus:ring-stone-400"
           />
-          다시 보고 싶거나 재방문 의사가 있는 기록만 보기
+          다시 보고 싶거나 다시 가고 싶은 기록만 보기
         </label>
 
         {filters.search !== deferredSearch ? (
@@ -162,12 +170,12 @@ export function RecordExplorer({
         <StatCard
           label="High Rated"
           value={`${highRatedCount}개`}
-          note="4.5점 이상으로 남겨둔 항목"
+          note="4.5 이상으로 남긴 기록"
         />
         <StatCard
           label="Revisit"
           value={`${revisitCount}개`}
-          note="다시 보고 싶거나 재방문 의사가 있는 기록"
+          note="다시 보고 싶거나 다시 가고 싶은 기록"
         />
         <StatCard
           label="Tags"
@@ -177,7 +185,7 @@ export function RecordExplorer({
       </div>
 
       {!isReady ? (
-        <SectionCard title="불러오는 중" description="로컬 아카이브를 읽고 있습니다.">
+        <SectionCard title="불러오는 중" description="기록을 정리해서 보여주고 있습니다.">
           <div className="grid gap-4 xl:grid-cols-2">
             {Array.from({ length: 4 }).map((_, index) => (
               <div key={index} className="soft-panel h-52 animate-pulse" />
@@ -187,7 +195,7 @@ export function RecordExplorer({
       ) : filteredRecords.length === 0 ? (
         <SectionCard title={emptyTitle} description={emptyDescription}>
           <div className="soft-panel px-5 py-5 text-sm leading-7 text-stone-600">
-            현재 조건에서는 일치하는 기록이 없습니다. 검색어나 필터를 조금 완화해 보세요.
+            현재 조건에서 일치하는 기록이 없습니다. 검색어나 필터를 조금 완화해 보세요.
           </div>
         </SectionCard>
       ) : (

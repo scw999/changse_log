@@ -39,33 +39,33 @@ export function DashboardView() {
     <div className="space-y-5">
       <PageHeader
         eyebrow="Personal Archive Dashboard"
-        title="삶의 기록을 다시 연결하는 개인 아카이브"
-        description="창세록은 생각, 단어, 장소, 콘텐츠, 활동을 한 흐름 안에서 저장하고 다시 꺼내 읽기 위한 private archive입니다."
+        title="삶의 기록을 다시 꺼내 읽는 개인 아카이브"
+        description="생각, 장소, 콘텐츠, 활동을 한 흐름 안에서 저장하고 다시 연결해보는 private archive입니다."
       />
 
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label="Total Records"
           value={`${records.length}개`}
-          note="생각, 단어, 콘텐츠, 장소, 활동 기록을 한 곳에서 관리합니다."
+          note="생각, 단어, 콘텐츠, 장소, 활동 기록을 한곳에서 관리합니다."
         />
         <StatCard label="This Month" value={`${thisMonthCount}개`} note="이번 달에 남긴 기록 수" />
         <StatCard
           label="High Rated"
           value={`${highRated.length}개`}
-          note="4.5 이상으로 표시된 기억할 만한 항목"
+          note="4.5 이상으로 남겨둔 다시 볼 만한 기록"
         />
         <StatCard
           label="Revisit"
           value={`${revisitCount}개`}
-          note="다시 보고 싶거나 다시 가고 싶은 기록"
+          note="다시 가거나 다시 보고 싶은 후보 기록"
         />
       </div>
 
       <div className="grid gap-5 xl:grid-cols-[1.15fr_0.85fr]">
         <SectionCard
           title="최근 저장된 기록"
-          description="가장 최근에 저장되거나 다시 정리된 기록부터 빠르게 훑어봅니다."
+          description="가장 최근에 정리한 기록부터 빠르게 다시 훑어볼 수 있습니다."
           action={<InlineLink href="/recent" label="전체 보기" />}
         >
           <div className="grid gap-4 xl:grid-cols-2">
@@ -75,7 +75,7 @@ export function DashboardView() {
           </div>
         </SectionCard>
 
-        <SectionCard title="카테고리 개요" description="기록 축별로 빠르게 이동할 수 있습니다.">
+        <SectionCard title="카테고리 개요" description="기록 묶음별로 바로 이동할 수 있습니다.">
           <div className="grid gap-3 sm:grid-cols-2">
             {CATEGORY_ORDER.map((category) => {
               const meta = CATEGORY_META[category];
@@ -100,7 +100,7 @@ export function DashboardView() {
       <div className="grid gap-5 xl:grid-cols-[1fr_1fr]">
         <SectionCard
           title="최근 생각"
-          description="아이디어, 메모, 리플렉션을 다시 읽으며 패턴을 발견합니다."
+          description="아이디어, 메모, 리플렉션을 다시 읽으며 연결을 찾습니다."
           action={<InlineLink href="/thoughts" label="생각으로 이동" />}
         >
           <div className="space-y-4">
@@ -112,7 +112,7 @@ export function DashboardView() {
 
         <SectionCard
           title="고평점 기록"
-          description="다시 보고 싶은 콘텐츠와 다시 가고 싶은 장소를 모아 봅니다."
+          description="다시 볼 콘텐츠와 다시 가고 싶은 장소를 모아둡니다."
           action={<InlineLink href="/review" label="리뷰 보기" />}
         >
           <div className="space-y-4">
@@ -124,7 +124,7 @@ export function DashboardView() {
       </div>
 
       <div className="grid gap-5 xl:grid-cols-[1fr_1fr_0.9fr]">
-        <SectionCard title="최근 장소" description="좋아하는 장소와 공간의 기억을 다시 확인합니다.">
+        <SectionCard title="최근 장소" description="좋았던 공간과 동선을 다시 확인합니다.">
           <div className="space-y-4">
             {recentPlaces.map((record) => (
               <RecordCard key={record.id} record={record} compact />
@@ -132,7 +132,7 @@ export function DashboardView() {
           </div>
         </SectionCard>
 
-        <SectionCard title="최근 활동" description="운동과 트래킹 기록을 몸의 감각과 함께 봅니다.">
+        <SectionCard title="최근 활동" description="이동과 운동 흐름을 다시 읽습니다.">
           <div className="space-y-4">
             {recentActivities.map((record) => (
               <RecordCard key={record.id} record={record} compact />
@@ -140,15 +140,16 @@ export function DashboardView() {
           </div>
         </SectionCard>
 
-        <SectionCard title="자주 남긴 태그" description="반복되는 관심사와 흐름을 빠르게 읽습니다.">
+        <SectionCard title="자주 쓴 태그" description="태그를 눌러 같은 기록 묶음으로 바로 이동할 수 있습니다.">
           <div className="flex flex-wrap gap-2">
             {topTags.map(([tag, count]) => (
-              <span
+              <Link
                 key={tag}
+                href={`/recent?tag=${encodeURIComponent(tag)}`}
                 className="rounded-full border border-white/80 bg-white/80 px-3 py-2 text-sm text-stone-700 shadow-sm"
               >
                 #{tag} <span className="text-stone-400">· {count}</span>
-              </span>
+              </Link>
             ))}
           </div>
         </SectionCard>

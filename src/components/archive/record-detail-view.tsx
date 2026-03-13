@@ -133,12 +133,13 @@ export function RecordDetailView({ id }: Readonly<{ id: string }>) {
               </div>
               <div className="mt-3 flex flex-wrap gap-2">
                 {record.tags.map((tag) => (
-                  <span
+                  <Link
                     key={tag}
+                    href={`/recent?tag=${encodeURIComponent(tag)}`}
                     className="rounded-full border border-white/80 bg-white/90 px-3 py-1 text-xs text-stone-600"
                   >
                     #{tag}
-                  </span>
+                  </Link>
                 ))}
               </div>
             </div>

@@ -1,5 +1,7 @@
+"use client";
+
 import Image from "next/image";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ArrowUpRight, CalendarDays, MapPin, Repeat2, Tags } from "lucide-react";
 
 import { RatingStars } from "@/components/ui/rating-stars";
@@ -23,15 +25,28 @@ interface RecordCardProps {
 }
 
 export function RecordCard({ record, compact = false }: Readonly<RecordCardProps>) {
+  const router = useRouter();
   const meta = getCategoryMeta(record.category);
   const rating = getRecordRating(record);
   const location = getRecordLocationLabel(record);
   const headline = getTypeSpecificHeadline(record);
   const thumbnail = getRepresentativeImage(record);
 
+  function openRecord() {
+    router.push(`/records/${record.id}`);
+  }
+
   return (
-    <Link
-      href={`/records/${record.id}`}
+    <article
+      role="link"
+      tabIndex={0}
+      onClick={openRecord}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          openRecord();
+        }
+      }}
       className={cx(
         "group panel relative block overflow-hidden transition-transform duration-200 hover:-translate-y-0.5",
         compact ? "px-4 py-4" : "px-5 py-5 md:px-6",
@@ -83,12 +98,17 @@ export function RecordCard({ record, compact = false }: Readonly<RecordCardProps
 
         <div className="mt-4 flex flex-wrap gap-2">
           {record.tags.slice(0, compact ? 3 : 5).map((tag) => (
-            <span
+            <button
               key={tag}
-              className="rounded-full border border-white/80 bg-white/80 px-3 py-1 text-xs text-stone-600 shadow-sm"
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                router.push(`/recent?tag=${encodeURIComponent(tag)}`);
+              }}
+              className="relative z-10 rounded-full border border-white/80 bg-white/80 px-3 py-1 text-xs text-stone-600 shadow-sm"
             >
               #{tag}
-            </span>
+            </button>
           ))}
         </div>
 
@@ -105,7 +125,7 @@ export function RecordCard({ record, compact = false }: Readonly<RecordCardProps
           ) : null}
           <span className="inline-flex items-center gap-1.5">
             <Tags className="h-3.5 w-3.5" />
-            중요도 {record.importance} · {getImportanceLabel(record.importance)}
+            중요도 {record.importance}점 {getImportanceLabel(record.importance)}
           </span>
           {isRevisitCandidate(record) ? (
             <span className="inline-flex items-center gap-1.5 text-emerald-700">
@@ -115,6 +135,6 @@ export function RecordCard({ record, compact = false }: Readonly<RecordCardProps
           ) : null}
         </div>
       </div>
-    </Link>
+    </article>
   );
 }

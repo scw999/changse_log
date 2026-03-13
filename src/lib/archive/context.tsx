@@ -12,7 +12,12 @@ import {
   upsertRemoteArchiveRecord,
   uploadRemoteRecordImages,
 } from "@/lib/archive/supabase-store";
-import { readRecordsFromStorage, writeRecordsToStorage } from "@/lib/archive/storage";
+import {
+  readRecordsFromStorage,
+  readRemoteRecordsCache,
+  writeRecordsToStorage,
+  writeRemoteRecordsCache,
+} from "@/lib/archive/storage";
 import { ArchiveContextValue, ArchiveRecord } from "@/lib/archive/types";
 import { normalizeImages, sortRecords } from "@/lib/archive/utils";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
@@ -76,16 +81,26 @@ export function ArchiveProvider({ children }: Readonly<{ children: React.ReactNo
         return;
       }
 
+      const cachedRecords = readRemoteRecordsCache(currentUser.id);
+      if (cachedRecords && cachedRecords.length > 0) {
+        setRecords(cachedRecords);
+        setIsRemote(true);
+        setIsReady(true);
+      }
+
       try {
         const remoteRecords = await fetchRemoteArchiveRecords(client, currentUser);
         if (!ignore) {
           setRecords(remoteRecords);
           setIsRemote(true);
+          writeRemoteRecordsCache(currentUser.id, remoteRecords);
         }
       } catch {
         if (!ignore) {
-          setRecords([]);
-          setIsRemote(false);
+          if (!cachedRecords) {
+            setRecords([]);
+            setIsRemote(false);
+          }
         }
       } finally {
         if (!ignore) {
@@ -121,6 +136,7 @@ export function ArchiveProvider({ children }: Readonly<{ children: React.ReactNo
               setRecords(remoteRecords);
               setIsRemote(true);
               setIsReady(true);
+              writeRemoteRecordsCache(nextUser.id, remoteRecords);
             }
           })
           .catch(() => {
@@ -151,6 +167,7 @@ export function ArchiveProvider({ children }: Readonly<{ children: React.ReactNo
       const remoteRecords = await fetchRemoteArchiveRecords(client, currentUser);
       setRecords(remoteRecords);
       setIsRemote(true);
+      writeRemoteRecordsCache(currentUser.id, remoteRecords);
     };
 
     return {
