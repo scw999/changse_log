@@ -8,13 +8,22 @@ interface StatCardProps {
   value: string;
   note: string;
   href?: string;
+  onClick?: () => void;
   className?: string;
 }
 
-export function StatCard({ label, value, note, href, className }: Readonly<StatCardProps>) {
+export function StatCard({
+  label,
+  value,
+  note,
+  href,
+  onClick,
+  className,
+}: Readonly<StatCardProps>) {
   const classes = cx(
     "soft-panel px-5 py-5",
-    href && "group block transition duration-200 hover:-translate-y-0.5 hover:bg-white/90",
+    (href || onClick) &&
+      "group block transition duration-200 hover:-translate-y-0.5 hover:bg-white/90",
     className,
   );
 
@@ -22,7 +31,7 @@ export function StatCard({ label, value, note, href, className }: Readonly<StatC
     <>
       <div className="flex items-start justify-between gap-3">
         <p className="text-xs uppercase tracking-[0.3em] text-stone-500">{label}</p>
-        {href ? (
+        {href || onClick ? (
           <ArrowRight className="mt-0.5 h-4 w-4 shrink-0 text-stone-400 transition group-hover:text-stone-700" />
         ) : null}
       </div>
@@ -36,6 +45,14 @@ export function StatCard({ label, value, note, href, className }: Readonly<StatC
       <Link href={href} className={classes}>
         {content}
       </Link>
+    );
+  }
+
+  if (onClick) {
+    return (
+      <button type="button" onClick={onClick} className={classes}>
+        {content}
+      </button>
     );
   }
 

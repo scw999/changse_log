@@ -1,6 +1,6 @@
 "use client";
 
-import { useDeferredValue, useState } from "react";
+import { useDeferredValue, useRef, useState } from "react";
 
 import { RecordCard } from "@/components/archive/record-card";
 import { SectionCard } from "@/components/ui/section-card";
@@ -33,6 +33,8 @@ export function RecordExplorer({
   initialRevisitOnly,
 }: Readonly<RecordExplorerProps>) {
   const { records, isReady } = useArchive();
+  const filterSectionRef = useRef<HTMLElement | null>(null);
+  const resultsSectionRef = useRef<HTMLDivElement | null>(null);
   const [filters, setFilters] = useState<RecordFilterState>(() => ({
     ...DEFAULT_FILTERS,
     tag: initialTag && initialTag.trim().length > 0 ? initialTag : "all",
@@ -56,9 +58,36 @@ export function RecordExplorer({
     setFilters((current) => ({ ...current, [key]: value }));
   }
 
+  function scrollToFilters() {
+    filterSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function scrollToResults() {
+    resultsSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function applyHighRatedView() {
+    setFilters((current) => ({
+      ...current,
+      ratingMin: 4.5,
+      sort: "rating",
+    }));
+    requestAnimationFrame(scrollToResults);
+  }
+
+  function applyRevisitView() {
+    setFilters((current) => ({
+      ...current,
+      revisitOnly: true,
+    }));
+    requestAnimationFrame(scrollToResults);
+  }
+
   return (
     <div className="space-y-5">
       <SectionCard
+        className="scroll-mt-24"
+        ref={filterSectionRef}
         title="검색과 필터"
         description="검색어, 정렬, 월, 태그, 지역, 평점, 다시 보기 조건으로 기록을 빠르게 좁혀보세요."
       >
@@ -189,26 +218,35 @@ export function RecordExplorer({
           label="보이는 기록"
           value={`${filteredRecords.length}`}
           note={`현재 범위 ${scopedRecords.length}개 중 ${filteredRecords.length}개가 표시됩니다.`}
+          onClick={scrollToResults}
         />
         <StatCard
           label="고평점"
           value={`${highRatedCount}`}
           note="평점 4.5 이상 기록 수입니다."
+          onClick={applyHighRatedView}
         />
         <StatCard
           label="다시 보기"
           value={`${revisitCount}`}
           note="다시 보고 싶은 기록 수입니다."
+          onClick={applyRevisitView}
         />
         <StatCard
           label="태그"
           value={`${options.tags.length}`}
           note="현재 범위에서 사용할 수 있는 태그 수입니다."
+          onClick={scrollToFilters}
         />
       </div>
 
       {!isReady ? (
-        <SectionCard title="기록 불러오는 중" description="아카이브를 준비하고 있습니다.">
+        <SectionCard
+          className="scroll-mt-24"
+          ref={resultsSectionRef}
+          title="기록 불러오는 중"
+          description="아카이브를 준비하고 있습니다."
+        >
           <div className="grid gap-4 xl:grid-cols-2">
             {Array.from({ length: 4 }).map((_, index) => (
               <div key={index} className="soft-panel h-52 animate-pulse" />
@@ -216,13 +254,13 @@ export function RecordExplorer({
           </div>
         </SectionCard>
       ) : filteredRecords.length === 0 ? (
-        <SectionCard title={emptyTitle} description={emptyDescription}>
+        <SectionCard className="scroll-mt-24" ref={resultsSectionRef} title={emptyTitle} description={emptyDescription}>
           <div className="soft-panel px-5 py-5 text-sm leading-7 text-stone-600">
             현재 조건에 맞는 기록이 없습니다. 필터를 조금 완화해 보세요.
           </div>
         </SectionCard>
       ) : (
-        <div className="grid gap-4 xl:grid-cols-2">
+        <div ref={resultsSectionRef} className="grid scroll-mt-24 gap-4 xl:grid-cols-2">
           {filteredRecords.map((record) => (
             <RecordCard key={record.id} record={record} />
           ))}

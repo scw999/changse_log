@@ -1,3 +1,5 @@
+import { forwardRef } from "react";
+
 import { cx } from "@/lib/archive/utils";
 
 interface SectionCardProps {
@@ -8,15 +10,18 @@ interface SectionCardProps {
   children: React.ReactNode;
 }
 
-export function SectionCard({
-  title,
-  description,
-  className,
-  action,
-  children,
-}: Readonly<SectionCardProps>) {
+export const SectionCard = forwardRef<HTMLElement, Readonly<SectionCardProps>>(function SectionCard(
+  {
+    title,
+    description,
+    className,
+    action,
+    children,
+  },
+  ref,
+) {
   return (
-    <section className={cx("panel px-5 py-5 md:px-6", className)}>
+    <section ref={ref} className={cx("panel px-5 py-5 md:px-6", className)}>
       {title || description || action ? (
         <header className="mb-4 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div>
@@ -31,4 +36,4 @@ export function SectionCard({
       {children}
     </section>
   );
-}
+});
