@@ -83,11 +83,19 @@ export interface ArchiveRecord {
   tags: string[];
   createdAt: string;
   eventDate?: string;
+  updatedAt?: string;
   importance: number;
   sourceType: SourceType;
   summary: string;
   notes?: string;
   visibility: RecordVisibility;
+  searchText?: string;
+  rating?: number | null;
+  headline?: string;
+  locationLabel?: string;
+  areaLabel?: string;
+  revisitCandidate?: boolean;
+  thumbnail?: ArchiveImage | null;
   images?: ArchiveImage[];
   thought?: ThoughtDetails;
   word?: WordDetails;
@@ -129,5 +137,6 @@ export interface ArchiveContextValue {
   uploadImages: (recordId: string, files: File[]) => Promise<ArchiveImage[]>;
   updateImages: (recordId: string, images: ArchiveImage[]) => Promise<void>;
   removeImage: (recordId: string, imageId: string) => Promise<void>;
+  getRecordDetail: (recordId: string) => Promise<ArchiveRecord | null>;
   signOut: () => Promise<void>;
 }

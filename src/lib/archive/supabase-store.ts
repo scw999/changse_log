@@ -16,6 +16,7 @@ export type RecordRow = {
   subcategory: string;
   tags: string[] | null;
   created_at: string;
+  updated_at?: string | null;
   event_date: string | null;
   importance: number;
   source_type: ArchiveRecord["sourceType"];
@@ -56,6 +57,26 @@ export async function fetchRemoteArchiveRecords(
 
   const payload = (await response.json()) as { records?: ArchiveRecord[] };
   return sortRecords(payload.records ?? [], "newest");
+}
+
+export async function fetchRemoteArchiveRecordDetail(recordId: string) {
+  const response = await fetch(`/api/archive/records/${recordId}`, {
+    method: "GET",
+    credentials: "include",
+    cache: "no-store",
+  });
+
+  if (response.status === 404) {
+    return null;
+  }
+
+  if (!response.ok) {
+    const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+    throw new Error(payload?.error ?? "archive_record_detail_fetch_failed");
+  }
+
+  const payload = (await response.json()) as { record?: ArchiveRecord | null };
+  return payload.record ?? null;
 }
 
 export async function upsertRemoteArchiveRecord(
@@ -231,6 +252,7 @@ export function rowToRecord(row: RecordRow, images: ArchiveImage[]): ArchiveReco
     tags: row.tags ?? [],
     createdAt: row.created_at,
     eventDate: row.event_date ?? undefined,
+    updatedAt: row.updated_at ?? row.created_at,
     importance: row.importance,
     sourceType: row.source_type,
     summary: row.summary ?? "",

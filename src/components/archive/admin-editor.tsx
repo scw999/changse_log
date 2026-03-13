@@ -36,6 +36,7 @@ export function AdminEditor() {
     uploadImages,
     updateImages,
     removeImage,
+    getRecordDetail,
   } = useArchive();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [draft, setDraft] = useState<ArchiveRecord>(() => createDraft("thoughts"));
@@ -43,19 +44,30 @@ export function AdminEditor() {
   const [isUploading, setIsUploading] = useState(false);
 
   useEffect(() => {
+    let ignore = false;
+
     if (!selectedId) {
-      return;
+      return () => {
+        ignore = true;
+      };
     }
 
     const selected = records.find((record) => record.id === selectedId);
     if (selected) {
-      setDraft(cloneRecord(selected));
+      void getRecordDetail(selectedId).then((detail) => {
+        if (!ignore && detail) {
+          setDraft(cloneRecord(detail));
+        }
+      });
     }
-  }, [records, selectedId]);
+
+    return () => {
+      ignore = true;
+    };
+  }, [getRecordDetail, records, selectedId]);
 
   function selectRecord(record: ArchiveRecord) {
     setSelectedId(record.id);
-    setDraft(cloneRecord(record));
     setMessage("");
   }
 

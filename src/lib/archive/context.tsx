@@ -7,6 +7,7 @@ import { seedRecords } from "@/lib/archive/mock-data";
 import {
   deleteRemoteArchiveRecord,
   deleteRemoteImage,
+  fetchRemoteArchiveRecordDetail,
   fetchRemoteArchiveRecords,
   syncRemoteRecordImages,
   upsertRemoteArchiveRecord,
@@ -248,6 +249,13 @@ export function ArchiveProvider({ children }: Readonly<{ children: React.ReactNo
         const client = createSupabaseBrowserClient();
         await deleteRemoteImage(client, user, targetImage);
         await refreshRemote(user);
+      },
+      getRecordDetail: async (recordId) => {
+        if (user && isSupabaseConfigured()) {
+          return fetchRemoteArchiveRecordDetail(recordId);
+        }
+
+        return records.find((record) => record.id === recordId) ?? null;
       },
       signOut: async () => {
         if (!isSupabaseConfigured()) {

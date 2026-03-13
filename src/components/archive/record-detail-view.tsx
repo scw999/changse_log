@@ -30,10 +30,43 @@ import {
 } from "@/lib/archive/utils";
 
 export function RecordDetailView({ id }: Readonly<{ id: string }>) {
-  const { records, isReady } = useArchive();
-  const record = records.find((item) => item.id === id);
+  const { records, isReady, getRecordDetail } = useArchive();
+  const previewRecord = records.find((item) => item.id === id) ?? null;
+  const [record, setRecord] = useState(previewRecord);
+  const [isLoadingDetail, setIsLoadingDetail] = useState(false);
   const images = useMemo(() => normalizeImages(record?.images ?? []), [record?.images]);
   const [activeImageIndex, setActiveImageIndex] = useState<number | null>(null);
+
+  useEffect(() => {
+    setRecord(previewRecord);
+  }, [previewRecord]);
+
+  useEffect(() => {
+    let ignore = false;
+
+    if (!isReady) {
+      return () => {
+        ignore = true;
+      };
+    }
+
+    setIsLoadingDetail(true);
+    void getRecordDetail(id)
+      .then((detail) => {
+        if (!ignore && detail) {
+          setRecord(detail);
+        }
+      })
+      .finally(() => {
+        if (!ignore) {
+          setIsLoadingDetail(false);
+        }
+      });
+
+    return () => {
+      ignore = true;
+    };
+  }, [getRecordDetail, id, isReady]);
 
   useEffect(() => {
     if (activeImageIndex === null) {
@@ -63,7 +96,7 @@ export function RecordDetailView({ id }: Readonly<{ id: string }>) {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [activeImageIndex, images.length]);
 
-  if (!isReady && !record) {
+  if ((!isReady || isLoadingDetail) && !record) {
     return (
       <SectionCard title="기록을 불러오는 중" description="저장된 아카이브를 확인하고 있습니다.">
         <div className="soft-panel h-80 animate-pulse" />

@@ -56,7 +56,7 @@ export function getCategoryMeta(category: CategoryKey) {
 }
 
 export function getRecordRating(record: ArchiveRecord) {
-  return (
+  return record.rating ?? (
     record.content?.rating ??
     record.place?.rating ??
     record.activity?.satisfactionRating ??
@@ -65,11 +65,11 @@ export function getRecordRating(record: ArchiveRecord) {
 }
 
 export function getRecordArea(record: ArchiveRecord) {
-  return record.place?.area ?? record.activity?.location ?? "";
+  return record.areaLabel ?? record.place?.area ?? record.activity?.location ?? "";
 }
 
 export function getRecordLocationLabel(record: ArchiveRecord) {
-  return record.place?.placeName ?? record.activity?.location ?? "";
+  return record.locationLabel ?? record.place?.placeName ?? record.activity?.location ?? "";
 }
 
 export function getRecordRevisitIntent(record: ArchiveRecord): RevisitIntent | null {
@@ -81,7 +81,7 @@ export function getRecordRevisitIntent(record: ArchiveRecord): RevisitIntent | n
 }
 
 export function isRevisitCandidate(record: ArchiveRecord) {
-  return getRecordRevisitIntent(record) === "yes";
+  return record.revisitCandidate ?? getRecordRevisitIntent(record) === "yes";
 }
 
 export function getImportanceLabel(importance: number) {
@@ -93,6 +93,10 @@ export function getSourceLabel(record: ArchiveRecord) {
 }
 
 export function getSearchableText(record: ArchiveRecord) {
+  if (record.searchText) {
+    return record.searchText.toLowerCase();
+  }
+
   return [
     record.title,
     record.body,
@@ -293,6 +297,10 @@ export function createActivityDetails(): ActivityDetails {
 }
 
 export function getTypeSpecificHeadline(record: ArchiveRecord) {
+  if (record.headline) {
+    return record.headline;
+  }
+
   if (record.thought) {
     return record.thought.oneLineThought;
   }
@@ -333,6 +341,11 @@ export function normalizeImages(images: ArchiveImage[] = []) {
 }
 
 export function getRepresentativeImage(record: Pick<ArchiveRecord, "images">) {
+  const thumbnailRecord = record as ArchiveRecord;
+  if (thumbnailRecord.thumbnail?.url) {
+    return thumbnailRecord.thumbnail;
+  }
+
   const images = normalizeImages(record.images ?? []);
   return images.find((image) => image.isPrimary) ?? images[0] ?? null;
 }
