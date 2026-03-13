@@ -1,15 +1,18 @@
 # 창세록 Internal Ingestion Spec
 
-이 문서는 창세봇 같은 trusted assistant가 창세록에 기록을 생성, 수정, 이미지 첨부할 때 사용하는 서버 API 규격입니다.
+이 문서는 trusted assistant가 창세록에 기록을 생성, 검색, 최근 조회, 수정, 이미지 첨부할 때 사용하는 서버 API 규격입니다.
 
 ## 목적
 
-창세록의 입력 채널은 이제 두 가지입니다.
+창세록의 trusted assistant flow는 다음 순서를 기준으로 합니다.
 
-1. 웹 관리자 직접 입력
-2. trusted assistant가 승인된 payload를 internal API로 저장
+1. 사용자 승인 완료
+2. assistant가 기존 기록을 검색하거나 최근 기록을 조회
+3. 필요한 경우 record id를 확보
+4. assistant가 create 또는 patch 실행
+5. 필요하면 이미지 첨부
 
-이 API는 public write 용도가 아니라, owner 전용 assistant workflow를 위한 trusted path입니다.
+이 API는 public write 용도가 아니라 owner 전용 trusted path입니다.
 
 ## 인증
 
@@ -32,16 +35,15 @@ x-internal-ingest-secret: <INTERNAL_INGEST_SECRET>
 ## 공통 규칙
 
 - 사용자 승인 후에만 호출합니다.
-- `source_type` 은 기본적으로 `assistant` 를 사용합니다.
 - owner id는 payload로 보내지 않습니다.
-- 서버가 `ALLOWED_ADMIN_EMAIL` 기준으로 owner를 찾아 저장합니다.
-- 다른 owner 데이터에 대한 write는 허용하지 않습니다.
+- 서버가 `ALLOWED_ADMIN_EMAIL` 기준으로 owner를 찾아서 owner-scoped 작업만 수행합니다.
+- 다른 owner 데이터에 대한 검색/조회/수정/write는 허용하지 않습니다.
 
 ## 1. 새 기록 생성
 
 - `POST /api/internal/archive-ingest`
 
-### 최소 payload
+최소 예시:
 
 ```json
 {
@@ -53,41 +55,73 @@ x-internal-ingest-secret: <INTERNAL_INGEST_SECRET>
 }
 ```
 
-### 권장 payload
+## 2. 기존 기록 검색
+
+- `POST /api/internal/archive-records/search`
+
+요청:
 
 ```json
 {
-  "title": "성수 브런치 기록",
-  "body": "성수에서 브런치를 먹었고 분위기와 메뉴 인상이 좋았다.",
-  "category": "places",
-  "subcategory": "카페",
-  "tags": ["성수", "브런치", "재방문"],
-  "summary": "다시 가고 싶은 성수 브런치 장소",
-  "importance": 4,
-  "event_date": "2026-03-13",
-  "source_type": "assistant",
-  "place": {
-    "placeName": "오르에르 성수",
-    "area": "성수",
-    "placeType": "카페",
-    "visitDate": "2026-03-13",
-    "rating": 4.5,
-    "oneLineReview": "분위기와 메뉴 모두 만족스러운 브런치 장소",
-    "revisitIntent": "yes",
-    "withWhom": "수연"
-  },
-  "metadata": {
-    "channel": "assistant",
-    "approved_by_user": true
-  }
+  "query": "스픽 노 모어",
+  "category": "content",
+  "limit": 10
 }
 ```
 
-## 2. 기존 기록 수정
+검색 범위:
+
+- `title`
+- `summary`
+- `body`
+- `tags`
+- `details.content.titleOriginal`
+- `details.content.originalTitle`
+
+응답:
+
+```json
+{
+  "ok": true,
+  "results": [
+    {
+      "id": "record-id",
+      "title": "영화 기록: 스픽 노 모어",
+      "summary": "불편한 긴장감을 남긴 영화 기록",
+      "category": "content",
+      "subcategory": "영화",
+      "event_date": "2026-03-12",
+      "created_at": "2026-03-12T10:00:00.000Z",
+      "updated_at": "2026-03-12T10:00:00.000Z",
+      "source_type": "assistant",
+      "details": {
+        "content": {
+          "originalTitle": "Speak No Evil"
+        }
+      }
+    }
+  ]
+}
+```
+
+## 3. 최근 기록 조회
+
+- `GET /api/internal/archive-records/recent?limit=10`
+
+용도:
+
+- “방금 저장한 거”
+- “어제 올린 영화”
+- “최근 장소 찾아줘”
+
+정렬:
+
+- `updated_at desc`
+- `created_at desc`
+
+## 4. 기존 기록 수정
 
 - `PATCH /api/internal/archive-records/[id]`
-
-assistant가 기존 기록을 보정할 때 사용합니다.
 
 지원 필드:
 
@@ -107,33 +141,26 @@ assistant가 기존 기록을 보정할 때 사용합니다.
 - `place`
 - `activity`
 
-### 실제 수정 예시
-
-영화 기록의 한글 제목과 원제를 바로잡는 경우:
+실제 수정 예시:
 
 ```json
 {
   "title": "영화 기록: 스픽 노 이블",
   "content": {
-    "titleOriginal": "Speak No Evil"
+    "originalTitle": "Speak No Evil"
   }
 }
 ```
 
-### 동작 원칙
+참고:
 
-- 기록 id가 존재해야 합니다.
-- 해당 기록이 owner 소유여야 합니다.
-- patch payload는 부분 수정으로 적용됩니다.
-- 서버는 `details.ingestion` 에 internal update 메타데이터를 남깁니다.
+- assistant가 `content.originalTitle` 로 보내도 서버가 `titleOriginal` 형식과 호환되게 정규화합니다.
 
-## 3. 기록 이미지 첨부
+## 5. 기록 이미지 첨부
 
 - `POST /api/internal/archive-records/[id]/images`
 
-assistant가 나중에 특정 기록에 이미지를 연결해야 할 때 사용합니다.
-
-### 요청 형식
+요청 형식:
 
 - `multipart/form-data`
 
@@ -147,7 +174,7 @@ assistant가 나중에 특정 기록에 이미지를 연결해야 할 때 사용
 - `alt_text`
 - `sort_order`
 
-### 예시
+예시:
 
 ```bash
 curl -X POST https://changselog.vercel.app/api/internal/archive-records/<record-id>/images \
@@ -158,36 +185,21 @@ curl -X POST https://changselog.vercel.app/api/internal/archive-records/<record-
   -F "sort_order=0"
 ```
 
-### 서버 동작
+## 실전 Search -> Patch 플로우
 
-1. internal secret 검증
-2. 대상 record가 owner 소유인지 확인
-3. Supabase Storage `record-images` 업로드
-4. `archive_record_images` row 저장
-5. signed URL 포함 응답 반환
+사용자 요청:
 
-## 웹 관리자 이미지 업로드와의 관계
+> 스픽 노 모어로 된 영화 기록 찾아서 제목을 스픽 노 이블로 바꾸고 원제를 Speak No Evil로 수정해
 
-이미지 모델은 웹과 assistant가 공용으로 사용합니다.
+assistant 처리:
 
-- 웹 관리자 업로드
-  - 관리자가 직접 여러 이미지를 업로드
-  - 캡션, 대체 텍스트, 순서 수정 가능
-- assistant 업로드
-  - internal image attach API를 통해 같은 모델에 저장
-
-공통 저장 위치:
-
-- 파일: Supabase Storage `record-images`
-- 메타데이터: `archive_record_images`
-
-## 권장 assistant 운영 규칙
-
-- 기록 생성 전에는 가능한 한 title, category, summary를 명확히 정리합니다.
-- 수정 API는 승인된 correction에만 사용합니다.
-- 이미지 첨부는 record id가 확정된 후 호출합니다.
-- 대체 텍스트는 가능하면 짧고 설명적으로 작성합니다.
-- assistant가 확신 없는 필드는 억지로 채우지 말고 생략합니다.
+1. `POST /api/internal/archive-records/search`
+   - query: `스픽 노 모어`
+   - category: `content`
+2. 결과에서 가장 적절한 `id` 확인
+3. `PATCH /api/internal/archive-records/[id]`
+   - `title = "영화 기록: 스픽 노 이블"`
+   - `content.originalTitle = "Speak No Evil"`
 
 ## 응답 및 오류
 
@@ -206,7 +218,7 @@ curl -X POST https://changselog.vercel.app/api/internal/archive-records/<record-
 
 assistant 쪽 권장 처리:
 
-- `400` 이면 payload를 재확인
+- `400` 이면 payload 확인
 - `401` 이면 secret 또는 배포 환경 확인
-- `404` 이면 record id 확인
-- `503` 이면 운영 환경 변수 상태 확인
+- `404` 이면 검색 결과/record id 재확인
+- `503` 이면 운영 환경 변수 확인

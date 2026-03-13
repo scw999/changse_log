@@ -227,6 +227,15 @@ function rowToRecord(row: RecordRow, images: ArchiveImage[]): ArchiveRecord {
     place?: ArchiveRecord["place"];
     activity?: ArchiveRecord["activity"];
   };
+  const content =
+    details.content && typeof details.content === "object"
+      ? {
+          ...details.content,
+          titleOriginal:
+            details.content.titleOriginal ??
+            (details.content as unknown as Record<string, unknown>).originalTitle,
+        }
+      : details.content;
 
   return {
     id: row.id,
@@ -244,7 +253,7 @@ function rowToRecord(row: RecordRow, images: ArchiveImage[]): ArchiveRecord {
     images,
     thought: details.thought,
     word: details.word,
-    content: details.content,
+    content: content as ArchiveRecord["content"],
     place: details.place,
     activity: details.activity,
   };

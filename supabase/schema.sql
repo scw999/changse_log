@@ -24,7 +24,8 @@ create table if not exists public.archive_records (
   source_type text not null check (source_type in ('telegram', 'manual', 'imported', 'assistant')),
   summary text not null default '',
   notes text,
-  details jsonb not null default '{}'::jsonb
+  details jsonb not null default '{}'::jsonb,
+  updated_at timestamptz not null default now()
 );
 
 create table if not exists public.archive_record_images (
@@ -108,6 +109,7 @@ create table if not exists public.draft_events (
 );
 
 alter table public.telegram_identities alter column telegram_user_id drop not null;
+alter table public.archive_records add column if not exists updated_at timestamptz not null default now();
 alter table public.archive_records drop constraint if exists archive_records_source_type_check;
 alter table public.archive_records
   add constraint archive_records_source_type_check
@@ -409,6 +411,12 @@ using (
 );
 
 drop trigger if exists set_telegram_identities_updated_at on public.telegram_identities;
+drop trigger if exists set_archive_records_updated_at on public.archive_records;
+create trigger set_archive_records_updated_at
+before update on public.archive_records
+for each row
+execute function public.set_current_timestamp_updated_at();
+
 create trigger set_telegram_identities_updated_at
 before update on public.telegram_identities
 for each row

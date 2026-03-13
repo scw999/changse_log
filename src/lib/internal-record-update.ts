@@ -49,10 +49,10 @@ export function parseInternalRecordPatch(input: unknown): InternalRecordPatch {
     notes: parseNullableString(payload.notes),
     eventDate: parseOptionalDate(payload.event_date),
     importance: parseOptionalImportance(payload.importance),
-    details: parseOptionalObject(payload.details),
+    details: normalizeGenericDetailsPatch(parseOptionalObject(payload.details)),
     thought: parseOptionalObject(payload.thought),
     word: parseOptionalObject(payload.word),
-    content: parseOptionalObject(payload.content),
+    content: normalizeContentPatch(parseOptionalObject(payload.content)),
     place: parseOptionalObject(payload.place),
     activity: parseOptionalObject(payload.activity),
   };
@@ -198,4 +198,35 @@ function parseOptionalObject(value: unknown) {
   }
 
   return value as Record<string, unknown>;
+}
+
+function normalizeContentPatch(value: Record<string, unknown> | undefined) {
+  if (!value) {
+    return value;
+  }
+
+  const normalized = { ...value };
+  const originalTitle = normalized.originalTitle;
+  const titleOriginal = normalized.titleOriginal;
+
+  if (typeof originalTitle === "string" && typeof titleOriginal !== "string") {
+    normalized.titleOriginal = originalTitle;
+  }
+
+  return normalized;
+}
+
+function normalizeGenericDetailsPatch(value: Record<string, unknown> | undefined) {
+  if (!value) {
+    return value;
+  }
+
+  const normalized = { ...value };
+  const rawContent = normalized.content;
+
+  if (rawContent && typeof rawContent === "object" && !Array.isArray(rawContent)) {
+    normalized.content = normalizeContentPatch(rawContent as Record<string, unknown>);
+  }
+
+  return normalized;
 }

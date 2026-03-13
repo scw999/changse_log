@@ -11,6 +11,8 @@ type ArchiveRecordLookup = {
   category: string;
   subcategory: string;
   tags: string[] | null;
+  created_at: string;
+  updated_at?: string | null;
   event_date: string | null;
   importance: number;
   source_type: string;
@@ -67,6 +69,41 @@ export async function getOwnedArchiveRecord(recordId: string) {
   return {
     ownerId,
     record: (data ?? null) as ArchiveRecordLookup | null,
+  };
+}
+
+export async function listOwnedArchiveRecords(options?: {
+  category?: string;
+  limit?: number;
+}) {
+  const ownerId = await resolveAllowedOwnerId();
+  const admin = createSupabaseAdminClient();
+  let query = admin
+    .from(RECORDS_TABLE)
+    .select(
+      "id, owner_id, title, body, category, subcategory, tags, created_at, updated_at, event_date, importance, source_type, summary, notes, details",
+    )
+    .eq("owner_id", ownerId)
+    .order("updated_at", { ascending: false })
+    .order("created_at", { ascending: false });
+
+  if (options?.category) {
+    query = query.eq("category", options.category);
+  }
+
+  if (options?.limit) {
+    query = query.limit(options.limit);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    throw error;
+  }
+
+  return {
+    ownerId,
+    records: (data ?? []) as ArchiveRecordLookup[],
   };
 }
 

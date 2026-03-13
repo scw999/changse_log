@@ -1,14 +1,19 @@
 # 창세록
 
-창세록은 개인용 삶의 기록 아카이브입니다.  
-웹앱은 브라우징, 수정, 리뷰를 담당하고, 승인된 구조화 기록은 trusted internal API를 통해 안전하게 저장할 수 있습니다.
+창세록은 개인용 삶의 기록 아카이브입니다.
 
-현재 지원하는 입력 흐름은 다음과 같습니다.
+- 웹앱: 브라우징, 수정, 리뷰
+- trusted assistant: internal API를 통한 생성, 검색, 수정, 이미지 첨부
+- 저장소: Supabase Database + Storage
+
+## 현재 지원하는 입력 흐름
 
 1. 웹 관리자에서 직접 기록 생성/수정
-2. 창세봇 같은 trusted assistant가 internal API로 기록 생성
-3. trusted assistant가 internal API로 기존 기록 수정
-4. 웹 관리자 또는 trusted assistant가 기록에 이미지를 첨부
+2. assistant가 `POST /api/internal/archive-ingest` 로 새 기록 저장
+3. assistant가 `POST /api/internal/archive-records/search` 로 기존 기록 검색
+4. assistant가 `GET /api/internal/archive-records/recent` 로 최근 기록 조회
+5. assistant가 `PATCH /api/internal/archive-records/[id]` 로 기존 기록 수정
+6. 웹 관리자 또는 assistant가 기록에 이미지 첨부
 
 ## 기술 스택
 
@@ -18,7 +23,7 @@
 - Supabase Auth / Database / Storage
 - Vercel
 
-## 필수 환경 변수
+## 환경 변수
 
 ```bash
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
@@ -31,17 +36,16 @@ TELEGRAM_WEBHOOK_SECRET=replace-with-random-secret
 TELEGRAM_BOT_USERNAME=your_bot_username
 ```
 
-보안상 중요한 점:
+주의:
 
 - `SUPABASE_SERVICE_ROLE_KEY` 는 서버 전용입니다.
 - `INTERNAL_INGEST_SECRET` 는 trusted assistant만 알아야 합니다.
-- 위 두 값에는 절대 `NEXT_PUBLIC_` 를 붙이면 안 됩니다.
+- 위 두 값에는 `NEXT_PUBLIC_` 를 붙이면 안 됩니다.
 
 ## 관리자 접근 제어
 
-- `/admin` 및 관리자 편집 기능은 `ALLOWED_ADMIN_EMAIL` 과 로그인 이메일이 일치할 때만 허용됩니다.
-- 일치하지 않으면 접근 거부 페이지로 이동합니다.
-- 데이터 레벨에서는 Supabase RLS가 계속 owner 기준으로 보호합니다.
+- `/admin` 은 `ALLOWED_ADMIN_EMAIL` 과 로그인 이메일이 일치할 때만 접근 가능합니다.
+- 데이터 레벨에서는 Supabase RLS가 owner 기준으로 계속 보호합니다.
 
 ## 로컬 실행
 
@@ -50,7 +54,7 @@ npm install
 npm run dev
 ```
 
-PowerShell에서 실행 정책 문제로 `npm` 이 막히면:
+PowerShell에서 `npm` 실행 정책 오류가 나면:
 
 ```powershell
 cmd /c npm install
@@ -65,7 +69,7 @@ cmd /c npm run dev
 
 Supabase SQL Editor에서 [schema.sql](C:/Users/scw99/Documents/development/changselog/supabase/schema.sql) 을 실행합니다.
 
-이 스키마는 다음을 포함합니다.
+포함 항목:
 
 - `archive_records`
 - `archive_record_images`
@@ -74,9 +78,10 @@ Supabase SQL Editor에서 [schema.sql](C:/Users/scw99/Documents/development/chan
 - `draft_records`
 - `draft_events`
 - private bucket `record-images`
-- owner 기반 RLS 정책
+- owner 기반 RLS
+- `archive_records.updated_at` 자동 갱신 트리거
 
-### 2. 인증 URL 설정
+### 2. Auth URL 설정
 
 Supabase Dashboard -> `Authentication` -> `URL Configuration`
 
@@ -88,40 +93,91 @@ Supabase Dashboard -> `Authentication` -> `URL Configuration`
 
 ### 3. Storage 버킷
 
-이미지 업로드는 private bucket `record-images` 를 사용합니다.  
-웹과 internal API 모두 이 버킷에 업로드하고, UI에서는 signed URL로 렌더링합니다.
+이미지는 private bucket `record-images` 에 저장됩니다.  
+UI 렌더링은 signed URL을 사용합니다.
 
 ## Internal Assistant API
+
+모든 internal route는 아래 방식 중 하나로 인증합니다.
+
+```http
+Authorization: Bearer <INTERNAL_INGEST_SECRET>
+```
+
+또는
+
+```http
+x-internal-ingest-secret: <INTERNAL_INGEST_SECRET>
+```
 
 ### 1. 새 기록 생성
 
 - `POST /api/internal/archive-ingest`
 
+### 2. 기존 기록 검색
+
+- `POST /api/internal/archive-records/search`
+
+요청 예시:
+
+```json
+{
+  "query": "스픽 노 모어",
+  "category": "content",
+  "limit": 10
+}
+```
+
+검색 대상:
+
+- `title`
+- `summary`
+- `body`
+- `tags`
+- `details.content.titleOriginal`
+- `details.content.originalTitle`
+
+응답 예시:
+
+```json
+{
+  "ok": true,
+  "results": [
+    {
+      "id": "record-id",
+      "title": "영화 기록: 스픽 노 모어",
+      "summary": "불편한 긴장감을 남긴 영화 기록",
+      "category": "content",
+      "subcategory": "영화",
+      "event_date": "2026-03-12",
+      "created_at": "2026-03-12T10:00:00.000Z",
+      "updated_at": "2026-03-12T10:00:00.000Z",
+      "source_type": "assistant",
+      "details": {
+        "content": {
+          "originalTitle": "Speak No Evil"
+        }
+      }
+    }
+  ]
+}
+```
+
+### 3. 최근 기록 조회
+
+- `GET /api/internal/archive-records/recent?limit=10`
+
 용도:
 
-- 승인된 assistant payload를 새 기록으로 저장
+- “방금 저장한 거”
+- “어제 올린 영화”
+- “최근 장소 기록”
 
-인증:
+같은 요청에서 최근 기록 후보를 빠르게 좁히기
 
-- `Authorization: Bearer <INTERNAL_INGEST_SECRET>`
-- 또는 `x-internal-ingest-secret: <INTERNAL_INGEST_SECRET>`
-
-### 2. 기존 기록 수정
+### 4. 기존 기록 수정
 
 - `PATCH /api/internal/archive-records/[id]`
-
-용도:
-
-- assistant가 기존 기록을 안전하게 보정
-- 제목 수정
-- 원제 수정
-- 요약, 태그, 메모, 상세 필드 일부 수정
-
-특징:
-
-- owner를 요청에서 받지 않습니다.
-- 서버가 `ALLOWED_ADMIN_EMAIL` 기준 owner를 찾아서 해당 owner 기록만 수정합니다.
-- 다른 owner 데이터는 수정할 수 없습니다.
 
 실사용 예시:
 
@@ -129,18 +185,16 @@ Supabase Dashboard -> `Authentication` -> `URL Configuration`
 {
   "title": "영화 기록: 스픽 노 이블",
   "content": {
-    "titleOriginal": "Speak No Evil"
+    "originalTitle": "Speak No Evil"
   }
 }
 ```
 
-### 3. 기록 이미지 첨부
+이 patch는 내부적으로 `content.originalTitle` 을 `content.titleOriginal` 로도 정규화해서 저장합니다.
+
+### 5. 기록 이미지 첨부
 
 - `POST /api/internal/archive-records/[id]/images`
-
-용도:
-
-- assistant가 특정 기록에 이미지를 첨부
 
 요청 형식:
 
@@ -148,36 +202,19 @@ Supabase Dashboard -> `Authentication` -> `URL Configuration`
 - 필수: `file`
 - 선택: `caption`, `alt_text`, `sort_order`
 
-서버 동작:
+## Search -> Patch 예시
 
-1. internal secret 검증
-2. owner 소유 기록인지 확인
-3. Supabase Storage `record-images` 업로드
-4. `archive_record_images` 메타데이터 row 생성
-5. signed URL 반환
+assistant가 이런 요청을 받았다고 가정합니다.
 
-## 웹 관리자 이미지 업로드
+> 스픽 노 모어로 된 영화 기록 찾아서 제목을 스픽 노 이블로 바꾸고 원제를 Speak No Evil로 수정해
 
-관리자 편집기에서 각 기록별로:
+처리 순서:
 
-- 여러 이미지 업로드
-- 이미지 미리보기 확인
-- 캡션 수정
-- 대체 텍스트 수정
-- 순서 변경
-- 이미지 제거
+1. `POST /api/internal/archive-records/search`
+2. 결과에서 record id 확인
+3. `PATCH /api/internal/archive-records/[id]`
 
-가 가능합니다.
-
-저장 방식:
-
-- 파일: Supabase Storage
-- 메타데이터: `archive_record_images`
-- 렌더링: signed URL
-
-## PowerShell 테스트 예시
-
-### 새 기록 생성
+PowerShell 예시:
 
 ```powershell
 $headers = @{
@@ -185,64 +222,84 @@ $headers = @{
   "Content-Type" = "application/json"
 }
 
-$body = @"
+$searchBody = @"
 {
-  "title": "테스트 메모",
-  "body": "assistant ingest 테스트 기록입니다.",
-  "category": "thoughts",
-  "subcategory": "메모",
-  "tags": ["test", "assistant"],
-  "summary": "assistant ingest test",
-  "importance": 3,
-  "event_date": "2026-03-13",
-  "source_type": "assistant"
+  "query": "스픽 노 모어",
+  "category": "content",
+  "limit": 10
 }
 "@
 
-Invoke-RestMethod `
+$search = Invoke-RestMethod `
   -Method Post `
-  -Uri "https://changselog.vercel.app/api/internal/archive-ingest" `
+  -Uri "https://changselog.vercel.app/api/internal/archive-records/search" `
   -Headers $headers `
-  -Body $body
-```
+  -Body $searchBody
 
-### 기존 기록 수정
+$recordId = $search.results[0].id
 
-```powershell
-$headers = @{
-  Authorization = "Bearer <INTERNAL_INGEST_SECRET>"
-  "Content-Type" = "application/json"
-}
-
-$body = @"
+$patchBody = @"
 {
   "title": "영화 기록: 스픽 노 이블",
   "content": {
-    "titleOriginal": "Speak No Evil"
+    "originalTitle": "Speak No Evil"
   }
 }
 "@
 
 Invoke-RestMethod `
   -Method Patch `
-  -Uri "https://changselog.vercel.app/api/internal/archive-records/<record-id>" `
+  -Uri "https://changselog.vercel.app/api/internal/archive-records/$recordId" `
   -Headers $headers `
-  -Body $body
+  -Body $patchBody
 ```
 
-### 기록 이미지 첨부
+## curl 예시
 
-```powershell
-$secret = "<INTERNAL_INGEST_SECRET>"
-$filePath = "C:\path\to\image.jpg"
+### 한글 제목으로 검색
 
-curl.exe -X POST "https://changselog.vercel.app/api/internal/archive-records/<record-id>/images" `
-  -H "Authorization: Bearer $secret" `
-  -F "file=@$filePath" `
-  -F "caption=기록용 사진" `
-  -F "alt_text=기록 상세 이미지" `
-  -F "sort_order=0"
+```bash
+curl -X POST https://changselog.vercel.app/api/internal/archive-records/search \
+  -H "Authorization: Bearer <INTERNAL_INGEST_SECRET>" \
+  -H "Content-Type: application/json" \
+  -d '{"query":"스픽 노 모어","category":"content","limit":10}'
 ```
+
+### 원제로 검색
+
+```bash
+curl -X POST https://changselog.vercel.app/api/internal/archive-records/search \
+  -H "Authorization: Bearer <INTERNAL_INGEST_SECRET>" \
+  -H "Content-Type: application/json" \
+  -d '{"query":"Speak No Evil","category":"content","limit":10}'
+```
+
+### 찾은 기록 patch
+
+```bash
+curl -X PATCH https://changselog.vercel.app/api/internal/archive-records/<record-id> \
+  -H "Authorization: Bearer <INTERNAL_INGEST_SECRET>" \
+  -H "Content-Type: application/json" \
+  -d '{"title":"영화 기록: 스픽 노 이블","content":{"originalTitle":"Speak No Evil"}}'
+```
+
+## 웹 관리자 이미지 업로드
+
+관리자 편집기에서 기록별로:
+
+- 여러 이미지 업로드
+- 캡션 수정
+- 대체 텍스트 수정
+- 순서 변경
+- 이미지 삭제
+
+를 할 수 있습니다.
+
+저장 방식:
+
+- 파일: Supabase Storage
+- 메타데이터: `archive_record_images`
+- 렌더링: signed URL
 
 ## Vercel 배포
 
@@ -258,10 +315,6 @@ Vercel Project Settings -> Environment Variables
 - `TELEGRAM_BOT_TOKEN`
 - `TELEGRAM_WEBHOOK_SECRET`
 - `TELEGRAM_BOT_USERNAME`
-
-권장:
-
-- `Production`, `Preview`, `Development` 모두 설정
 
 ### 2. 재배포
 
