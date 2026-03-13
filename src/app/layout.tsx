@@ -23,7 +23,7 @@ export const metadata: Metadata = {
     default: "창세록",
     template: "%s | 창세록",
   },
-  description: "삶의 기록을 구조화해 저장하고 다시 발견하는 개인 아카이브 앱",
+  description: "삶의 기록을 구조화해 저장하고 다시 읽는 private personal archive",
 };
 
 export default function RootLayout({

@@ -21,6 +21,7 @@ NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 ALLOWED_ADMIN_EMAIL=you@example.com
+ALLOWED_VIEWER_EMAILS=you@example.com,friend@example.com
 INTERNAL_INGEST_SECRET=replace-with-a-long-random-secret
 TELEGRAM_BOT_TOKEN=123456:telegram-bot-token
 TELEGRAM_WEBHOOK_SECRET=replace-with-random-secret
@@ -38,6 +39,25 @@ Supabase SQL Editor에서 [schema.sql](C:/Users/scw99/Documents/development/chan
 - private bucket `record-images`
 - owner 기반 RLS
 - `archive_records.updated_at` 자동 갱신
+
+## Private Access
+
+창세록은 공개 사이트가 아니라 allowlist 기반 private archive입니다.
+
+- `ALLOWED_VIEWER_EMAILS`
+  - 열람 가능한 이메일 목록
+  - 쉼표로 여러 주소 지정 가능
+- `ALLOWED_ADMIN_EMAIL`
+  - 관리자 편집 권한 이메일
+  - viewer 목록에도 자동 포함됩니다
+
+동작 방식:
+
+1. 허용된 이메일만 로그인 후 앱 열람 가능
+2. 허용되지 않은 이메일은 `access-denied` 로 이동
+3. Supabase 세션 쿠키가 유지되므로 한 번 로그인하면 계속 볼 수 있음
+
+배포 후 환경 변수를 바꾸면 Vercel에서 `Redeploy` 해야 합니다.
 
 ## 이미지 동작 방식
 

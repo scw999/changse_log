@@ -15,6 +15,7 @@ import {
   Sparkles,
 } from "lucide-react";
 
+import { ChangseLogLogo } from "@/components/brand/changselok-logo";
 import { NAV_ITEMS } from "@/lib/archive/config";
 import { useArchive } from "@/lib/archive/context";
 import { cx } from "@/lib/archive/utils";
@@ -48,17 +49,12 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
           <aside className="hidden lg:block">
             <div className="sticky top-6 space-y-4">
               <div className="panel overflow-hidden p-6">
-                <p className="text-xs uppercase tracking-[0.34em] text-stone-500">Private Archive</p>
-                <h1 className="mt-4 font-display text-[2.15rem] leading-none text-stone-950">창세록</h1>
+                <Link href="/" className="inline-flex">
+                  <ChangseLogLogo />
+                </Link>
                 <p className="mt-4 text-sm leading-7 text-stone-600">
                   삶의 기록을 구조화해 저장하고, 다시 읽고 연결을 발견하는 개인 아카이브입니다.
                 </p>
-                <div className="mt-6 soft-panel px-4 py-4">
-                  <p className="text-xs uppercase tracking-[0.3em] text-stone-500">Archive Direction</p>
-                  <p className="mt-2 text-sm leading-6 text-stone-700">
-                    웹에서는 탐색과 편집을, 창세봇과 internal API는 정리된 기록의 안전한 저장과 보정을 담당합니다.
-                  </p>
-                </div>
               </div>
 
               <nav className="panel p-3">
@@ -129,10 +125,9 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
             <header className="panel px-4 py-4 sm:px-5 lg:hidden">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="text-[11px] uppercase tracking-[0.3em] text-stone-500">Private Archive</p>
-                  <h1 className="mt-2 break-keep font-display text-[2rem] leading-none text-stone-950">
-                    창세록
-                  </h1>
+                  <Link href="/" className="inline-flex">
+                    <ChangseLogLogo compact />
+                  </Link>
                 </div>
                 <div className="shrink-0 rounded-full border border-amber-200/80 bg-white/80 px-3 py-1.5 text-[11px] text-stone-700">
                   {records.length}개

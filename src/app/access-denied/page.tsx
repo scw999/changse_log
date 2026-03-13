@@ -2,28 +2,37 @@ import Link from "next/link";
 
 import { PageHeader } from "@/components/ui/page-header";
 import { SectionCard } from "@/components/ui/section-card";
-import { allowedAdminEmail, isAdminEmailConfigured } from "@/lib/supabase/env";
+import { allowedViewerEmails } from "@/lib/supabase/env";
 
 export default function AccessDeniedPage() {
-  const description = isAdminEmailConfigured()
-    ? `이 앱은 개인 관리자용으로 잠겨 있습니다. 허용된 이메일(${allowedAdminEmail})로 로그인한 경우에만 관리자 화면에 접근할 수 있습니다.`
-    : "관리자 이메일이 아직 설정되지 않아 편집 화면 접근이 잠겨 있습니다. Vercel 또는 로컬 환경 변수에서 ALLOWED_ADMIN_EMAIL을 설정해 주세요.";
-
   return (
     <div className="space-y-5">
       <PageHeader
         eyebrow="Private Access"
-        title="접근이 허용되지 않았습니다"
-        description={description}
+        title="이 계정은 접근이 허용되지 않았습니다"
+        description="창세록은 초대된 이메일 사용자만 볼 수 있는 private archive입니다."
       />
 
       <SectionCard
-        title="다음에 확인할 것"
-        description="허용된 이메일로 다시 로그인하거나, 배포 환경 변수 설정을 점검해 주세요."
+        title="접근 가능한 이메일"
+        description="허용된 이메일로 다시 로그인하거나, 환경 변수 allowlist에 주소를 추가해 주세요."
       >
+        {allowedViewerEmails.length > 0 ? (
+          <div className="mb-5 flex flex-wrap gap-2">
+            {allowedViewerEmails.map((email) => (
+              <span
+                key={email}
+                className="rounded-full border border-white/80 bg-white/90 px-3 py-1 text-xs text-stone-600"
+              >
+                {email}
+              </span>
+            ))}
+          </div>
+        ) : null}
+
         <div className="flex flex-col gap-3 sm:flex-row">
           <Link
-            href="/login?error=access_denied&next=/admin"
+            href="/login?error=access_denied&next=/"
             className="inline-flex items-center justify-center rounded-full bg-stone-900 px-5 py-3 text-sm text-white"
           >
             다시 로그인

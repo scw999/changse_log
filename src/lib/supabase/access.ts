@@ -1,7 +1,34 @@
 import { redirect } from "next/navigation";
 
-import { isAdminEmailConfigured, isAllowedAdminEmail, isSupabaseConfigured } from "@/lib/supabase/env";
+import {
+  isAdminEmailConfigured,
+  isAllowedAdminEmail,
+  isAllowedViewerEmail,
+  isSupabaseConfigured,
+  isViewerEmailConfigured,
+} from "@/lib/supabase/env";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+
+export async function requireViewerUser(nextPath = "/") {
+  if (!isSupabaseConfigured()) {
+    return null;
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect(`/login?next=${encodeURIComponent(nextPath)}`);
+  }
+
+  if (!isViewerEmailConfigured() || !isAllowedViewerEmail(user.email)) {
+    redirect("/access-denied");
+  }
+
+  return user;
+}
 
 export async function getAuthenticatedAdminUser() {
   if (!isSupabaseConfigured()) {
@@ -36,6 +63,10 @@ export async function requireAdminUser(nextPath = "/admin") {
 
   if (!user) {
     redirect(`/login?next=${encodeURIComponent(nextPath)}`);
+  }
+
+  if (!isViewerEmailConfigured() || !isAllowedViewerEmail(user.email)) {
+    redirect("/access-denied");
   }
 
   if (!isAdminEmailConfigured() || !isAllowedAdminEmail(user.email)) {

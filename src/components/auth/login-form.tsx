@@ -5,7 +5,7 @@ import { useState } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 
-export function LoginForm({ nextPath = "/admin" }: Readonly<{ nextPath?: string }>) {
+export function LoginForm({ nextPath = "/" }: Readonly<{ nextPath?: string }>) {
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);

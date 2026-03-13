@@ -2,6 +2,11 @@ export const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 export const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 export const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 export const allowedAdminEmail = process.env.ALLOWED_ADMIN_EMAIL?.trim().toLowerCase() ?? "";
+const configuredViewerEmails = (process.env.ALLOWED_VIEWER_EMAILS ?? "")
+  .split(",")
+  .map((email) => email.trim().toLowerCase())
+  .filter(Boolean);
+export const allowedViewerEmails = Array.from(new Set([allowedAdminEmail, ...configuredViewerEmails].filter(Boolean)));
 export const telegramBotToken = process.env.TELEGRAM_BOT_TOKEN;
 export const telegramWebhookSecret = process.env.TELEGRAM_WEBHOOK_SECRET;
 export const telegramBotUsername = process.env.TELEGRAM_BOT_USERNAME?.trim().replace(/^@/, "") ?? "";
@@ -19,12 +24,24 @@ export function isAdminEmailConfigured() {
   return Boolean(allowedAdminEmail);
 }
 
+export function isViewerEmailConfigured() {
+  return allowedViewerEmails.length > 0;
+}
+
 export function isAllowedAdminEmail(email?: string | null) {
   if (!email || !allowedAdminEmail) {
     return false;
   }
 
   return email.trim().toLowerCase() === allowedAdminEmail;
+}
+
+export function isAllowedViewerEmail(email?: string | null) {
+  if (!email || allowedViewerEmails.length === 0) {
+    return false;
+  }
+
+  return allowedViewerEmails.includes(email.trim().toLowerCase());
 }
 
 export function isTelegramConfigured() {

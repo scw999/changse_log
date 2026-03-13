@@ -41,14 +41,7 @@ export function DashboardView() {
         eyebrow="Personal Archive Dashboard"
         title="삶의 기록을 다시 연결하는 개인 아카이브"
         description="창세록은 생각, 단어, 장소, 콘텐츠, 활동을 한 흐름 안에서 저장하고 다시 꺼내 읽기 위한 private archive입니다."
-      >
-        <div className="rounded-[28px] border border-white/80 bg-white/80 px-4 py-4 shadow-sm">
-          <p className="text-xs uppercase tracking-[0.3em] text-stone-500">Archive Workflow</p>
-          <p className="mt-2 text-sm leading-6 text-stone-700">
-            직접 기록을 정리하거나, 창세봇이 정리한 승인 기록을 저장한 뒤 웹에서 다시 탐색하고 보정할 수 있습니다.
-          </p>
-        </div>
-      </PageHeader>
+      />
 
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         <StatCard
