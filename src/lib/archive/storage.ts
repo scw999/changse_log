@@ -2,6 +2,7 @@ import { ArchiveRecord } from "@/lib/archive/types";
 
 export const ARCHIVE_STORAGE_KEY = "changselog.archive.records.v1";
 const REMOTE_ARCHIVE_CACHE_PREFIX = "changselog.archive.remote.v1";
+const REMOTE_ARCHIVE_CACHE_MAX_AGE_MS = 45 * 60 * 1000;
 const listeners = new Set<() => void>();
 
 export function readRecordsFromStorage() {
@@ -48,6 +49,16 @@ export function readRemoteRecordsCache(userId: string) {
     };
 
     if (!Array.isArray(parsed.records)) {
+      return null;
+    }
+
+    const cachedAtMs = parsed.cachedAt ? Date.parse(parsed.cachedAt) : Number.NaN;
+    if (!Number.isFinite(cachedAtMs)) {
+      return null;
+    }
+
+    if (Date.now() - cachedAtMs > REMOTE_ARCHIVE_CACHE_MAX_AGE_MS) {
+      window.localStorage.removeItem(`${REMOTE_ARCHIVE_CACHE_PREFIX}.${userId}`);
       return null;
     }
 
