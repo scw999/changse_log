@@ -26,6 +26,14 @@ import { isSupabaseConfigured } from "@/lib/supabase/env";
 
 const ArchiveContext = createContext<ArchiveContextValue | null>(null);
 
+export interface ArchiveBootstrapState {
+  records: ArchiveRecord[];
+  isReady: boolean;
+  isRemote: boolean;
+  isAuthenticated: boolean;
+  userEmail: string | null;
+}
+
 function createSeedSnapshot() {
   return sortRecords(structuredClone(seedRecords), "newest");
 }
@@ -47,20 +55,34 @@ function createInitialRecords() {
   return createLocalSnapshot();
 }
 
-export function ArchiveProvider({ children }: Readonly<{ children: React.ReactNode }>) {
-  const [records, setRecords] = useState<ArchiveRecord[]>(createInitialRecords);
-  const [isReady, setIsReady] = useState(false);
+export function ArchiveProvider({
+  children,
+  initialState,
+}: Readonly<{
+  children: React.ReactNode;
+  initialState?: ArchiveBootstrapState;
+}>) {
+  const [records, setRecords] = useState<ArchiveRecord[]>(
+    initialState?.records.length ? initialState.records : createInitialRecords(),
+  );
+  const [isReady, setIsReady] = useState(Boolean(initialState?.isReady));
   const [user, setUser] = useState<User | null>(null);
-  const [isRemote, setIsRemote] = useState(false);
+  const [isRemote, setIsRemote] = useState(Boolean(initialState?.isRemote));
+  const [authState, setAuthState] = useState(() => ({
+    isAuthenticated: Boolean(initialState?.isAuthenticated),
+    userEmail: initialState?.userEmail ?? null,
+  }));
 
   useEffect(() => {
     let ignore = false;
+    const hasInitialRemoteRecords = Boolean(initialState?.isRemote && initialState.records.length > 0);
 
     async function bootstrap() {
       if (!isSupabaseConfigured()) {
         setRecords(createLocalSnapshot());
         setIsRemote(false);
         setIsReady(true);
+        setAuthState({ isAuthenticated: false, userEmail: null });
         return;
       }
 
@@ -74,6 +96,10 @@ export function ArchiveProvider({ children }: Readonly<{ children: React.ReactNo
       }
 
       setUser(currentUser);
+      setAuthState({
+        isAuthenticated: Boolean(currentUser),
+        userEmail: currentUser?.email ?? null,
+      });
 
       if (!currentUser) {
         setRecords([]);
@@ -82,7 +108,7 @@ export function ArchiveProvider({ children }: Readonly<{ children: React.ReactNo
         return;
       }
 
-      const cachedRecords = readRemoteRecordsCache(currentUser.id);
+      const cachedRecords = hasInitialRemoteRecords ? null : readRemoteRecordsCache(currentUser.id);
       if (cachedRecords && cachedRecords.length > 0) {
         setRecords(cachedRecords);
         setIsRemote(true);
@@ -94,17 +120,16 @@ export function ArchiveProvider({ children }: Readonly<{ children: React.ReactNo
         if (!ignore) {
           setRecords(remoteRecords);
           setIsRemote(true);
+          setIsReady(true);
           writeRemoteRecordsCache(currentUser.id, remoteRecords);
         }
       } catch {
         if (!ignore) {
-          if (!cachedRecords) {
+          if (!cachedRecords && !hasInitialRemoteRecords) {
             setRecords([]);
             setIsRemote(false);
           }
-        }
-      } finally {
-        if (!ignore) {
+
           setIsReady(true);
         }
       }
@@ -123,6 +148,10 @@ export function ArchiveProvider({ children }: Readonly<{ children: React.ReactNo
       (_event: AuthChangeEvent, session: Session | null) => {
         const nextUser = session?.user ?? null;
         setUser(nextUser);
+        setAuthState({
+          isAuthenticated: Boolean(nextUser),
+          userEmail: nextUser?.email ?? null,
+        });
 
         if (!nextUser) {
           setRecords([]);
@@ -154,7 +183,7 @@ export function ArchiveProvider({ children }: Readonly<{ children: React.ReactNo
       ignore = true;
       subscription.subscription.unsubscribe();
     };
-  }, []);
+  }, [initialState]);
 
   const value = useMemo<ArchiveContextValue>(() => {
     const setLocalRecords = (nextRecords: ArchiveRecord[]) => {
@@ -174,9 +203,9 @@ export function ArchiveProvider({ children }: Readonly<{ children: React.ReactNo
     return {
       records,
       isReady,
-      isAuthenticated: Boolean(user),
+      isAuthenticated: authState.isAuthenticated,
       isRemote,
-      userEmail: user?.email ?? null,
+      userEmail: authState.userEmail,
       upsertRecord: async (record) => {
         if (user && isSupabaseConfigured()) {
           const client = createSupabaseBrowserClient();
@@ -208,7 +237,7 @@ export function ArchiveProvider({ children }: Readonly<{ children: React.ReactNo
       },
       uploadImages: async (recordId, files) => {
         if (!user || !isSupabaseConfigured()) {
-          throw new Error("이미지 업로드는 로그인 후 Supabase 모드에서만 사용할 수 있습니다.");
+          throw new Error("이미지 업로드는 로그인된 Supabase 모드에서만 사용할 수 있습니다.");
         }
 
         const client = createSupabaseBrowserClient();
@@ -236,7 +265,7 @@ export function ArchiveProvider({ children }: Readonly<{ children: React.ReactNo
       },
       removeImage: async (recordId, imageId) => {
         if (!user || !isSupabaseConfigured()) {
-          throw new Error("이미지 삭제는 로그인 후 Supabase 모드에서만 사용할 수 있습니다.");
+          throw new Error("이미지 삭제는 로그인된 Supabase 모드에서만 사용할 수 있습니다.");
         }
 
         const targetRecord = records.find((record) => record.id === recordId);
@@ -266,7 +295,7 @@ export function ArchiveProvider({ children }: Readonly<{ children: React.ReactNo
         await client.auth.signOut();
       },
     };
-  }, [isReady, isRemote, records, user]);
+  }, [authState, isReady, isRemote, records, user]);
 
   return <ArchiveContext.Provider value={value}>{children}</ArchiveContext.Provider>;
 }
