@@ -1,10 +1,18 @@
-# changse_log
+# 창세록 (changse_log)
 
-changse_log is a private personal archive for structured life records.
+구조화된 개인 기록 아카이브. 생각, 단어, 콘텐츠, 장소, 활동을 체계적으로 저장하고 탐색한다.
 
-- Web app: browse, filter, review, and edit
-- Trusted assistant APIs: create, search, recent lookup, update, delete, and image attachment
-- Data and files: Supabase Postgres + private Storage bucket
+- **웹앱**: 기록 탐색, 필터링, 리뷰, 편집
+- **창세봇 / Assistant API**: 기록 생성, 검색, 조회, 수정, 삭제, 이미지 첨부
+- **데이터**: Supabase Postgres + private Storage 버킷
+
+---
+
+*changse_log is a private personal archive for structured life records.*
+
+- *Web app: browse, filter, review, and edit*
+- *Trusted assistant APIs: create, search, recent lookup, update, delete, and image attachment*
+- *Data and files: Supabase Postgres + private Storage bucket*
 
 ## Environment Variables
 
@@ -20,55 +28,55 @@ TELEGRAM_WEBHOOK_SECRET=replace-with-random-secret
 TELEGRAM_BOT_USERNAME=your_bot_username
 ```
 
-## Private Access
+## 비공개 접근 (Private Access)
 
-This app is not public.
+이 앱은 비공개입니다.
 
-- `ALLOWED_VIEWER_EMAILS`: only these emails can open the archive
-- `ALLOWED_ADMIN_EMAIL`: only this email can access admin/editing and owner-scoped assistant writes
+- `ALLOWED_VIEWER_EMAILS`: 이 이메일만 아카이브 열람 가능
+- `ALLOWED_ADMIN_EMAIL`: 이 이메일만 관리자 편집 및 창세봇 기록 저장 가능
 
-Supabase auth session cookies keep users signed in between visits until the session expires or they sign out.
+Supabase 인증 세션 쿠키로 로그인 상태가 유지됩니다.
 
-## Supabase Setup
+## Supabase 설정
 
-Run [schema.sql](C:/Users/scw99/Documents/development/changselog/supabase/schema.sql) in the Supabase SQL Editor.
+Supabase SQL Editor에서 [schema.sql](supabase/schema.sql)을 실행합니다.
 
-This creates:
+생성되는 항목:
 
 - `archive_records`
 - `archive_record_images`
-- private bucket `record-images`
-- owner-scoped RLS policies
-- helper columns such as `updated_at`
-- `archive_record_images.is_primary` for representative image selection
+- private 버킷 `record-images`
+- owner 기준 RLS 정책
+- `updated_at` 등 헬퍼 컬럼
+- `archive_record_images.is_primary` 대표 이미지 선택
 
-## Representative Image Model
+## 대표 이미지 모델
 
-Gallery order and representative image are separate.
+갤러리 순서와 대표 이미지는 독립적입니다.
 
-- Gallery order uses `sort_order`
-- Representative image uses `archive_record_images.is_primary`
-- Cards and thumbnails use:
-  1. the image with `is_primary = true`
-  2. otherwise the first image by gallery order
-  3. otherwise no image
+- 갤러리 순서: `sort_order`
+- 대표 이미지: `archive_record_images.is_primary`
+- 카드/썸네일 표시 우선순위:
+  1. `is_primary = true`인 이미지
+  2. 갤러리 순서 첫 번째 이미지
+  3. 이미지 없음
 
-Important:
+참고:
 
-- setting a representative image does not move it to the front
-- existing records still work because they safely fall back to the first image
+- 대표 이미지 설정은 갤러리 순서를 변경하지 않음
+- 기존 기록은 첫 번째 이미지로 자동 폴백
 
-## Web Image Behavior
+## 웹 이미지 기능
 
-- Admin can upload multiple images per record
-- Admin can edit caption and alt text
-- Admin can reorder gallery images
-- Admin can choose a representative image independently
-- Detail page images open in a larger lightbox viewer
+- 기록당 다중 이미지 업로드
+- 캡션, 대체 텍스트 편집
+- 갤러리 이미지 순서 변경
+- 대표 이미지 독립 선택
+- 상세 페이지 라이트박스 뷰어
 
-## Internal APIs
+## Internal API (창세봇 연동)
 
-All internal assistant routes require:
+모든 내부 API 라우트는 다음 인증이 필요합니다:
 
 ```http
 Authorization: Bearer <INTERNAL_INGEST_SECRET>
@@ -80,7 +88,7 @@ or:
 x-internal-ingest-secret: <INTERNAL_INGEST_SECRET>
 ```
 
-Available routes:
+사용 가능한 라우트:
 
 - `POST /api/internal/archive-ingest`
 - `POST /api/internal/archive-records/search`
@@ -90,9 +98,9 @@ Available routes:
 - `POST /api/internal/archive-records/[id]/images`
 - `PATCH /api/internal/archive-records/[id]/images/[imageId]`
 
-### Internal Search Example
+### 검색 예시
 
-Search by Korean title:
+한국어 제목으로 검색:
 
 ```bash
 curl -X POST https://changselog.vercel.app/api/internal/archive-records/search \
@@ -101,7 +109,7 @@ curl -X POST https://changselog.vercel.app/api/internal/archive-records/search \
   -d '{"query":"스픽 노 모어","category":"content","limit":10}'
 ```
 
-Search by original title:
+원제로 검색:
 
 ```bash
 curl -X POST https://changselog.vercel.app/api/internal/archive-records/search \
@@ -110,7 +118,7 @@ curl -X POST https://changselog.vercel.app/api/internal/archive-records/search \
   -d '{"query":"Speak No Evil","category":"content","limit":10}'
 ```
 
-### Patch Found Record Example
+### 기록 수정 예시
 
 ```bash
 curl -X PATCH https://changselog.vercel.app/api/internal/archive-records/<record-id> \
@@ -119,9 +127,9 @@ curl -X PATCH https://changselog.vercel.app/api/internal/archive-records/<record
   -d '{"title":"영화 기록: 스픽 노 이블","content":{"originalTitle":"Speak No Evil"}}'
 ```
 
-### Patch Image Metadata Example
+### 이미지 메타데이터 수정 예시
 
-This updates representative image without changing gallery order:
+갤러리 순서는 유지하면서 대표 이미지를 변경:
 
 ```bash
 curl -X PATCH https://changselog.vercel.app/api/internal/archive-records/<record-id>/images/<image-id> \
@@ -130,7 +138,7 @@ curl -X PATCH https://changselog.vercel.app/api/internal/archive-records/<record
   -d '{"caption":"자전거 두 대 있는 사진","is_primary":true}'
 ```
 
-Expected response:
+응답 예시:
 
 ```json
 {
@@ -146,30 +154,30 @@ Expected response:
 }
 ```
 
-## Local Development
+## 로컬 개발
 
 ```bash
 npm install
 npm run dev
 ```
 
-If PowerShell blocks `npm` scripts:
+PowerShell에서 `npm` 스크립트가 차단될 경우:
 
 ```powershell
 cmd /c npm install
 cmd /c npm run dev
 ```
 
-## Verification
+## 검증
 
 ```bash
 npm run lint
 npm run build
 ```
 
-## Docs
+## 문서
 
-- [Information Architecture](C:/Users/scw99/Documents/development/changselog/docs/information-architecture.md)
-- [Database Schema](C:/Users/scw99/Documents/development/changselog/docs/database-schema.md)
-- [Internal Ingestion Spec](C:/Users/scw99/Documents/development/changselog/docs/internal-ingestion-spec.md)
-- [Folder Structure](C:/Users/scw99/Documents/development/changselog/docs/folder-structure.md)
+- [정보 구조 (Information Architecture)](docs/information-architecture.md)
+- [데이터베이스 스키마 (Database Schema)](docs/database-schema.md)
+- [Internal Ingestion 스펙](docs/internal-ingestion-spec.md)
+- [폴더 구조 (Folder Structure)](docs/folder-structure.md)
