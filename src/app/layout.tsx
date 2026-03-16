@@ -27,11 +27,25 @@ const notoSerifKr = Noto_Serif_KR({
 });
 
 export const metadata: Metadata = {
+  applicationName: "창세록",
   title: {
-    default: "李쎌꽭濡?",
-    template: "%s | 李쎌꽭濡?",
+    default: "창세록",
+    template: "%s | 창세록",
   },
-  description: "?띠쓽 湲곕줉??援ъ“?뷀빐 ??ν븯怨??ㅼ떆 ?쎈뒗 private personal archive",
+  description: "생각, 단어, 콘텐츠, 장소, 활동 기록을 차곡차곡 모아 다시 꺼내보는 개인 아카이브",
+  icons: {
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/favicon.ico", sizes: "any" },
+    ],
+    apple: [{ url: "/apple-icon", sizes: "180x180" }],
+    shortcut: ["/icon.svg"],
+  },
+  appleWebApp: {
+    capable: true,
+    title: "창세록",
+    statusBarStyle: "default",
+  },
 };
 
 export default async function RootLayout({
