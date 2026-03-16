@@ -99,13 +99,37 @@ export function ArchiveProvider({
       }
 
       const client = createSupabaseBrowserClient();
+
+      // If server already verified auth, skip the blocking getUser call
+      // and mark ready immediately so the page renders with server data
+      if (initialAuth?.isAuthenticated) {
+        setIsRemote(true);
+        setIsReady(true);
+
+        // Load full records in background for context (navigation, mutations)
+        try {
+          const { data } = await client.auth.getUser();
+          const bgUser = data.user;
+          if (ignore || !bgUser) return;
+          setUser(bgUser);
+
+          const remoteRecords = await fetchRemoteArchiveRecords(client, bgUser);
+          if (!ignore) {
+            setRecords(remoteRecords);
+            writeRemoteRecordsCache(bgUser.id, remoteRecords);
+          }
+        } catch {
+          // Server data already rendered, background failure is non-critical
+        }
+        return;
+      }
+
+      // Non-authenticated or no server data: full blocking bootstrap
       const {
         data: { user: currentUser },
       } = await client.auth.getUser();
 
-      if (ignore) {
-        return;
-      }
+      if (ignore) return;
 
       setUser(currentUser);
       setAuthState({
@@ -118,13 +142,6 @@ export function ArchiveProvider({
         setIsRemote(false);
         setIsReady(true);
         return;
-      }
-
-      // If server already authenticated, mark ready immediately
-      // and load records in background without blocking UI
-      if (initialAuth?.isAuthenticated) {
-        setIsRemote(true);
-        setIsReady(true);
       }
 
       const cachedRecords = readRemoteRecordsCache(currentUser.id);
@@ -144,11 +161,10 @@ export function ArchiveProvider({
         }
       } catch {
         if (!ignore) {
-          if (!cachedRecords && !initialAuth?.isAuthenticated) {
+          if (!cachedRecords) {
             setRecords([]);
             setIsRemote(false);
           }
-
           setIsReady(true);
         }
       }
