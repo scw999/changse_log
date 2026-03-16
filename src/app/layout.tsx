@@ -35,11 +35,11 @@ export const metadata: Metadata = {
   description: "생각, 단어, 콘텐츠, 장소, 활동 기록을 차곡차곡 모아 다시 꺼내보는 개인 아카이브",
   icons: {
     icon: [
-      { url: "/changselog_favicon.png", type: "image/png" },
-      { url: "/favicon.ico", sizes: "any" },
+      { url: "/favicon.ico?v=2", sizes: "any" },
+      { url: "/icon.png?v=2", type: "image/png", sizes: "512x512" },
     ],
-    apple: [{ url: "/changselog_favicon.png", sizes: "180x180", type: "image/png" }],
-    shortcut: ["/changselog_favicon.png"],
+    apple: [{ url: "/apple-icon.png?v=2", sizes: "180x180", type: "image/png" }],
+    shortcut: ["/favicon.ico?v=2"],
   },
   appleWebApp: {
     capable: true,
