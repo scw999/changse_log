@@ -2,11 +2,9 @@ import type { Metadata } from "next";
 import { Noto_Sans_KR, Noto_Serif_KR } from "next/font/google";
 
 import { AppShell } from "@/components/layout/app-shell";
-import type { ArchiveBootstrapState } from "@/lib/archive/context";
-import { getServerArchiveRecords } from "@/lib/archive/server-records";
+import type { ArchiveBootstrapAuth } from "@/lib/archive/context";
 import {
   isAllowedViewerEmail,
-  isSupabaseAdminConfigured,
   isSupabaseConfigured,
 } from "@/lib/supabase/env";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -53,12 +51,12 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const initialArchiveState = await getInitialArchiveState();
+  const initialAuth = await getInitialAuth();
 
   return (
     <html lang="ko">
       <body className={`${notoSansKr.variable} ${notoSerifKr.variable} antialiased`}>
-        <Providers initialState={initialArchiveState}>
+        <Providers initialAuth={initialAuth}>
           <AppShell>{children}</AppShell>
         </Providers>
       </body>
@@ -66,15 +64,9 @@ export default async function RootLayout({
   );
 }
 
-async function getInitialArchiveState(): Promise<ArchiveBootstrapState> {
-  if (!isSupabaseConfigured() || !isSupabaseAdminConfigured()) {
-    return {
-      records: [],
-      isReady: false,
-      isRemote: false,
-      isAuthenticated: false,
-      userEmail: null,
-    };
+async function getInitialAuth(): Promise<ArchiveBootstrapAuth> {
+  if (!isSupabaseConfigured()) {
+    return { isAuthenticated: false, userEmail: null };
   }
 
   try {
@@ -84,30 +76,14 @@ async function getInitialArchiveState(): Promise<ArchiveBootstrapState> {
     } = await supabase.auth.getUser();
 
     if (!user || !isAllowedViewerEmail(user.email)) {
-      return {
-        records: [],
-        isReady: false,
-        isRemote: false,
-        isAuthenticated: false,
-        userEmail: null,
-      };
+      return { isAuthenticated: false, userEmail: null };
     }
 
-    const records = await getServerArchiveRecords(user.email);
     return {
-      records,
-      isReady: true,
-      isRemote: true,
       isAuthenticated: true,
       userEmail: user.email ?? null,
     };
   } catch {
-    return {
-      records: [],
-      isReady: false,
-      isRemote: false,
-      isAuthenticated: false,
-      userEmail: null,
-    };
+    return { isAuthenticated: false, userEmail: null };
   }
 }

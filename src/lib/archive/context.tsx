@@ -26,6 +26,12 @@ import { isSupabaseConfigured } from "@/lib/supabase/env";
 
 const ArchiveContext = createContext<ArchiveContextValue | null>(null);
 
+export interface ArchiveBootstrapAuth {
+  isAuthenticated: boolean;
+  userEmail: string | null;
+}
+
+/** @deprecated Use ArchiveBootstrapAuth instead */
 export interface ArchiveBootstrapState {
   records: ArchiveRecord[];
   isReady: boolean;
@@ -57,25 +63,22 @@ function createInitialRecords() {
 
 export function ArchiveProvider({
   children,
-  initialState,
+  initialAuth,
 }: Readonly<{
   children: React.ReactNode;
-  initialState?: ArchiveBootstrapState;
+  initialAuth?: ArchiveBootstrapAuth;
 }>) {
-  const [records, setRecords] = useState<ArchiveRecord[]>(
-    initialState?.records.length ? initialState.records : createInitialRecords(),
-  );
-  const [isReady, setIsReady] = useState(Boolean(initialState?.isReady));
+  const [records, setRecords] = useState<ArchiveRecord[]>(createInitialRecords);
+  const [isReady, setIsReady] = useState(!isSupabaseConfigured());
   const [user, setUser] = useState<User | null>(null);
-  const [isRemote, setIsRemote] = useState(Boolean(initialState?.isRemote));
-  const [authState, setAuthState] = useState(() => ({
-    isAuthenticated: Boolean(initialState?.isAuthenticated),
-    userEmail: initialState?.userEmail ?? null,
+  const [isRemote, setIsRemote] = useState(false);
+  const [authState, setAuthState] = useState<ArchiveBootstrapAuth>(() => ({
+    isAuthenticated: Boolean(initialAuth?.isAuthenticated),
+    userEmail: initialAuth?.userEmail ?? null,
   }));
 
   useEffect(() => {
     let ignore = false;
-    const hasInitialRemoteRecords = Boolean(initialState?.isRemote && initialState.records.length > 0);
 
     async function bootstrap() {
       if (!isSupabaseConfigured()) {
@@ -108,7 +111,7 @@ export function ArchiveProvider({
         return;
       }
 
-      const cachedRecords = hasInitialRemoteRecords ? null : readRemoteRecordsCache(currentUser.id);
+      const cachedRecords = readRemoteRecordsCache(currentUser.id);
       if (cachedRecords && cachedRecords.length > 0) {
         setRecords(cachedRecords);
         setIsRemote(true);
@@ -125,7 +128,7 @@ export function ArchiveProvider({
         }
       } catch {
         if (!ignore) {
-          if (!cachedRecords && !hasInitialRemoteRecords) {
+          if (!cachedRecords) {
             setRecords([]);
             setIsRemote(false);
           }
@@ -183,7 +186,7 @@ export function ArchiveProvider({
       ignore = true;
       subscription.subscription.unsubscribe();
     };
-  }, [initialState]);
+  }, [initialAuth]);
 
   const value = useMemo<ArchiveContextValue>(() => {
     const setLocalRecords = (nextRecords: ArchiveRecord[]) => {

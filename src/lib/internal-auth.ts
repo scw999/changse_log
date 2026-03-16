@@ -34,7 +34,15 @@ export function isAuthorizedInternalRequest(request: Request) {
   return Boolean(requestSecret && requestSecret === internalIngestSecret);
 }
 
+let cachedOwnerId: string | null = null;
+let cachedOwnerIdExpiresAt = 0;
+const OWNER_CACHE_TTL_MS = 5 * 60 * 1000;
+
 export async function resolveAllowedOwnerId() {
+  if (cachedOwnerId && Date.now() < cachedOwnerIdExpiresAt) {
+    return cachedOwnerId;
+  }
+
   const admin = createSupabaseAdminClient();
   const { data, error } = await admin.auth.admin.listUsers({
     page: 1,
@@ -51,6 +59,8 @@ export async function resolveAllowedOwnerId() {
     throw new Error("allowed admin user not found in Supabase Auth");
   }
 
+  cachedOwnerId = user.id;
+  cachedOwnerIdExpiresAt = Date.now() + OWNER_CACHE_TTL_MS;
   return user.id;
 }
 

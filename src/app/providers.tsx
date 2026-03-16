@@ -1,13 +1,13 @@
 "use client";
 
-import { ArchiveProvider, type ArchiveBootstrapState } from "@/lib/archive/context";
+import { ArchiveProvider, type ArchiveBootstrapAuth } from "@/lib/archive/context";
 
 export default function Providers({
   children,
-  initialState,
+  initialAuth,
 }: Readonly<{
   children: React.ReactNode;
-  initialState?: ArchiveBootstrapState;
+  initialAuth?: ArchiveBootstrapAuth;
 }>) {
-  return <ArchiveProvider initialState={initialState}>{children}</ArchiveProvider>;
+  return <ArchiveProvider initialAuth={initialAuth}>{children}</ArchiveProvider>;
 }

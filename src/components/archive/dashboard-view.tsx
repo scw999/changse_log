@@ -8,32 +8,72 @@ import { SectionCard } from "@/components/ui/section-card";
 import { StatCard } from "@/components/ui/stat-card";
 import { CATEGORY_META, CATEGORY_ORDER } from "@/lib/archive/config";
 import { useArchive } from "@/lib/archive/context";
+import type { DashboardData } from "@/lib/archive/server-records";
 import { getRecordRating, getRecordRevisitIntent } from "@/lib/archive/utils";
 
-export function DashboardView() {
+interface DashboardViewProps {
+  serverData?: DashboardData | null;
+}
+
+export function DashboardView({ serverData }: Readonly<DashboardViewProps>) {
   const { records } = useArchive();
 
-  const recentRecords = records.slice(0, 4);
-  const recentThoughts = records.filter((record) => record.category === "thoughts").slice(0, 3);
-  const recentPlaces = records.filter((record) => record.category === "places").slice(0, 2);
-  const recentActivities = records.filter((record) => record.category === "activities").slice(0, 2);
-  const highRated = records.filter((record) => (getRecordRating(record) ?? 0) >= 4.5).slice(0, 4);
+  const useServerData = Boolean(serverData);
+
+  const recentRecords = useServerData
+    ? serverData!.recentRecords
+    : records.slice(0, 4);
+  const recentThoughts = useServerData
+    ? serverData!.recentThoughts
+    : records.filter((record) => record.category === "thoughts").slice(0, 3);
+  const recentPlaces = useServerData
+    ? serverData!.recentPlaces
+    : records.filter((record) => record.category === "places").slice(0, 2);
+  const recentActivities = useServerData
+    ? serverData!.recentActivities
+    : records.filter((record) => record.category === "activities").slice(0, 2);
+  const highRated = useServerData
+    ? serverData!.highRated
+    : records.filter((record) => (getRecordRating(record) ?? 0) >= 4.5).slice(0, 4);
 
   const currentMonth = new Date().toISOString().slice(0, 7);
-  const thisMonthCount = records.filter((record) =>
-    (record.eventDate ?? record.createdAt).startsWith(currentMonth),
-  ).length;
 
-  const revisitCount = records.filter((record) => getRecordRevisitIntent(record) === "yes").length;
+  const totalCount = useServerData
+    ? serverData!.totalCount
+    : records.length;
+  const thisMonthCount = useServerData
+    ? serverData!.thisMonthCount
+    : records.filter((record) =>
+        (record.eventDate ?? record.createdAt).startsWith(currentMonth),
+      ).length;
+  const revisitCount = useServerData
+    ? serverData!.revisitCount
+    : records.filter((record) => getRecordRevisitIntent(record) === "yes").length;
+  const highRatedCount = useServerData
+    ? serverData!.highRatedCount
+    : highRated.length;
 
-  const tagCounts = new Map<string, number>();
-  for (const record of records) {
-    for (const tag of record.tags) {
-      tagCounts.set(tag, (tagCounts.get(tag) ?? 0) + 1);
-    }
-  }
+  const categoryCounts = useServerData
+    ? serverData!.categoryCounts
+    : CATEGORY_ORDER.reduce(
+        (acc, cat) => {
+          acc[cat] = records.filter((r) => r.category === cat).length;
+          return acc;
+        },
+        {} as Record<string, number>,
+      );
 
-  const topTags = [...tagCounts.entries()].sort((left, right) => right[1] - left[1]).slice(0, 8);
+  const topTags = useServerData
+    ? serverData!.topTags
+    : (() => {
+        const tagCounts = new Map<string, number>();
+        for (const record of records) {
+          for (const tag of record.tags) {
+            tagCounts.set(tag, (tagCounts.get(tag) ?? 0) + 1);
+          }
+        }
+        return [...tagCounts.entries()].sort((left, right) => right[1] - left[1]).slice(0, 8);
+      })();
 
   return (
     <div className="space-y-5">
@@ -46,7 +86,7 @@ export function DashboardView() {
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label="전체 기록"
-          value={`${records.length}`}
+          value={`${totalCount}`}
           note="전체 기록 목록으로 이동합니다."
           href="/recent"
         />
@@ -58,7 +98,7 @@ export function DashboardView() {
         />
         <StatCard
           label="고평점"
-          value={`${highRated.length}`}
+          value={`${highRatedCount}`}
           note="평점 4.5 이상 기록으로 이동합니다."
           href="/recent?ratingMin=4.5"
         />
@@ -87,7 +127,7 @@ export function DashboardView() {
           <div className="grid gap-3 sm:grid-cols-2">
             {CATEGORY_ORDER.map((category) => {
               const meta = CATEGORY_META[category];
-              const count = records.filter((record) => record.category === category).length;
+              const count = categoryCounts[category] ?? 0;
 
               return (
                 <Link
