@@ -160,12 +160,19 @@ alter table public.draft_records
 create index if not exists archive_records_owner_idx on public.archive_records (owner_id, event_date desc, created_at desc);
 create index if not exists archive_records_category_idx on public.archive_records (owner_id, category, subcategory);
 create index if not exists archive_records_importance_idx on public.archive_records (owner_id, importance desc);
+create index if not exists archive_records_visibility_idx on public.archive_records (owner_id, visibility);
+create index if not exists archive_records_tags_idx on public.archive_records using gin (tags);
+create index if not exists archive_records_updated_idx on public.archive_records (owner_id, updated_at desc);
 create index if not exists archive_record_images_record_idx on public.archive_record_images (record_id, sort_order);
+create index if not exists archive_record_images_owner_idx on public.archive_record_images (owner_id, record_id);
 create index if not exists telegram_identities_owner_idx on public.telegram_identities (owner_id, status);
 create index if not exists inbox_messages_owner_idx on public.inbox_messages (owner_id, received_at desc);
 create index if not exists inbox_messages_status_idx on public.inbox_messages (owner_id, status, received_at desc);
+create index if not exists inbox_messages_telegram_identity_idx on public.inbox_messages (telegram_identity_id, status);
 create index if not exists draft_records_owner_idx on public.draft_records (owner_id, created_at desc);
 create index if not exists draft_records_status_idx on public.draft_records (owner_id, status, created_at desc);
+create index if not exists draft_records_inbox_idx on public.draft_records (inbox_message_id);
+create index if not exists draft_records_archive_idx on public.draft_records (archive_record_id);
 create index if not exists draft_events_draft_idx on public.draft_events (draft_record_id, created_at desc);
 
 alter table public.archive_records enable row level security;

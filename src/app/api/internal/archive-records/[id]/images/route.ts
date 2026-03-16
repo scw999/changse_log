@@ -6,6 +6,14 @@ import { getOwnedArchiveRecord, isAuthorizedInternalRequest, serializeInternalEr
 
 const BUCKET = "record-images";
 const IMAGES_TABLE = "archive_record_images";
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+const ALLOWED_MIME_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/heic",
+  "image/heif",
+]);
 
 export async function POST(
   request: Request,
@@ -31,7 +39,21 @@ export async function POST(
     const file = formData.get("file");
 
     if (!(file instanceof File)) {
-      throw new Error("file is required");
+      return NextResponse.json({ error: "file is required" }, { status: 400 });
+    }
+
+    if (file.size > MAX_FILE_SIZE) {
+      return NextResponse.json(
+        { error: `file_too_large: max ${MAX_FILE_SIZE / 1024 / 1024}MB` },
+        { status: 400 },
+      );
+    }
+
+    if (file.type && !ALLOWED_MIME_TYPES.has(file.type)) {
+      return NextResponse.json(
+        { error: `unsupported_file_type: ${file.type}` },
+        { status: 400 },
+      );
     }
 
     const caption = toOptionalString(formData.get("caption"));

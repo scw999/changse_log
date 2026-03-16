@@ -252,9 +252,16 @@ async function handleCallbackQuery(callbackQuery: TelegramCallbackQuery) {
   }
 
   if (parsed.action === "approve") {
-    const archiveRecordId = await saveDraftToArchive(draft, identity);
+    let archiveRecordId: string;
+    try {
+      archiveRecordId = await saveDraftToArchive(draft, identity);
+    } catch (saveError) {
+      console.error("draft→archive save failed", saveError);
+      await answerTelegramCallbackQuery(callbackQuery.id, "저장 중 오류가 발생했습니다. 다시 시도해주세요.");
+      return { ok: false, error: "archive_save_failed" as const };
+    }
 
-    await admin
+    const { error: draftUpdateError } = await admin
       .from(DRAFT_RECORDS_TABLE)
       .update({
         status: "approved",
@@ -262,6 +269,14 @@ async function handleCallbackQuery(callbackQuery: TelegramCallbackQuery) {
         approved_at: new Date().toISOString(),
       })
       .eq("id", draft.id);
+
+    if (draftUpdateError) {
+      console.error("draft status update failed after archive save", {
+        draftId: draft.id,
+        archiveRecordId,
+        error: draftUpdateError,
+      });
+    }
 
     if (draft.inbox_message_id) {
       await admin

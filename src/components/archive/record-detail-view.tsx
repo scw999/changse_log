@@ -402,8 +402,16 @@ function ImageLightbox({
 
   return (
     <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="이미지 뷰어"
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 px-4 py-6"
       onClick={onClose}
+      onKeyDown={(event) => {
+        if (event.key === "Escape") onClose();
+        if (event.key === "ArrowLeft") onPrev();
+        if (event.key === "ArrowRight") onNext();
+      }}
     >
       <div
         className="relative flex max-h-full w-full max-w-5xl flex-col gap-4"

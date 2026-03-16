@@ -32,9 +32,97 @@ const navIcons = {
   "/admin": Settings2,
 };
 
+function AuthButtons({
+  isAuthenticated,
+  onSignOut,
+}: Readonly<{
+  isAuthenticated: boolean;
+  onSignOut: () => void;
+}>) {
+  if (isAuthenticated) {
+    return (
+      <>
+        <Link
+          href="/admin"
+          className="rounded-full border border-amber-200/80 bg-white/90 px-3 py-2 text-xs text-stone-700"
+        >
+          관리자
+        </Link>
+        <button
+          type="button"
+          onClick={onSignOut}
+          className="rounded-full border border-stone-200 bg-white/90 px-3 py-2 text-xs text-stone-700"
+        >
+          로그아웃
+        </button>
+      </>
+    );
+  }
+
+  return (
+    <Link
+      href="/login"
+      className="inline-flex items-center gap-1.5 rounded-full border border-amber-200/80 bg-white/90 px-3 py-2 text-xs text-stone-700"
+    >
+      로그인
+      <ArrowRight className="h-3.5 w-3.5" />
+    </Link>
+  );
+}
+
+function NavItem({
+  href,
+  label,
+  isActive,
+  variant,
+}: Readonly<{
+  href: string;
+  label: string;
+  isActive: boolean;
+  variant: "sidebar" | "mobile";
+}>) {
+  const Icon = navIcons[href as keyof typeof navIcons];
+
+  if (variant === "sidebar") {
+    return (
+      <li>
+        <Link
+          href={href}
+          className={cx(
+            "flex items-center gap-3 rounded-2xl px-4 py-3 text-sm transition",
+            isActive
+              ? "border border-amber-200/80 bg-gradient-to-r from-amber-100 via-rose-50 to-white text-stone-900 shadow-lg shadow-amber-100/60"
+              : "text-stone-600 hover:bg-white/60 hover:text-stone-900",
+          )}
+        >
+          <Icon className={cx("h-4 w-4", isActive && "text-amber-700")} />
+          <span>{label}</span>
+        </Link>
+      </li>
+    );
+  }
+
+  return (
+    <Link
+      href={href}
+      className={cx(
+        "flex min-w-0 items-center justify-center gap-1.5 rounded-2xl border px-2 py-2.5 text-xs transition",
+        isActive
+          ? "border-amber-200/80 bg-gradient-to-r from-amber-100 via-rose-50 to-white text-stone-900 shadow-sm"
+          : "border-stone-200 bg-white/70 text-stone-600",
+      )}
+    >
+      <Icon className={cx("h-3.5 w-3.5 shrink-0", isActive && "text-amber-700")} />
+      <span className="truncate">{label}</span>
+    </Link>
+  );
+}
+
 export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) {
   const pathname = usePathname();
   const { records, isAuthenticated, signOut, userEmail } = useArchive();
+
+  const handleSignOut = () => void signOut();
 
   return (
     <div className="relative min-h-screen overflow-x-hidden">
@@ -59,27 +147,15 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
 
               <nav className="panel p-3">
                 <ul className="space-y-1.5">
-                  {NAV_ITEMS.map((item) => {
-                    const isActive = pathname === item.href;
-                    const Icon = navIcons[item.href as keyof typeof navIcons];
-
-                    return (
-                      <li key={item.href}>
-                        <Link
-                          href={item.href}
-                          className={cx(
-                            "flex items-center gap-3 rounded-2xl px-4 py-3 text-sm transition",
-                            isActive
-                              ? "border border-amber-200/80 bg-gradient-to-r from-amber-100 via-rose-50 to-white text-stone-900 shadow-lg shadow-amber-100/60"
-                              : "text-stone-600 hover:bg-white/60 hover:text-stone-900",
-                          )}
-                        >
-                          <Icon className={cx("h-4 w-4", isActive && "text-amber-700")} />
-                          <span>{item.label}</span>
-                        </Link>
-                      </li>
-                    );
-                  })}
+                  {NAV_ITEMS.map((item) => (
+                    <NavItem
+                      key={item.href}
+                      href={item.href}
+                      label={item.label}
+                      isActive={pathname === item.href}
+                      variant="sidebar"
+                    />
+                  ))}
                 </ul>
               </nav>
 
@@ -90,31 +166,7 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
                   생각, 단어, 콘텐츠, 장소, 활동 기록을 한 흐름 안에서 같이 탐색합니다.
                 </p>
                 <div className="mt-4 flex flex-wrap gap-2">
-                  {isAuthenticated ? (
-                    <>
-                      <Link
-                        href="/admin"
-                        className="rounded-full border border-amber-200/80 bg-white/90 px-3 py-2 text-xs text-stone-700"
-                      >
-                        관리자
-                      </Link>
-                      <button
-                        type="button"
-                        onClick={() => void signOut()}
-                        className="rounded-full border border-stone-200 bg-white/90 px-3 py-2 text-xs text-stone-700"
-                      >
-                        로그아웃
-                      </button>
-                    </>
-                  ) : (
-                    <Link
-                      href="/login"
-                      className="inline-flex items-center gap-1.5 rounded-full border border-amber-200/80 bg-white/90 px-3 py-2 text-xs text-stone-700"
-                    >
-                      로그인
-                      <ArrowRight className="h-3.5 w-3.5" />
-                    </Link>
-                  )}
+                  <AuthButtons isAuthenticated={isAuthenticated} onSignOut={handleSignOut} />
                 </div>
                 {userEmail ? <p className="mt-3 truncate text-xs text-stone-500">{userEmail}</p> : null}
               </div>
@@ -139,54 +191,19 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
               </p>
 
               <div className="mt-3 flex flex-wrap gap-2">
-                {isAuthenticated ? (
-                  <>
-                    <Link
-                      href="/admin"
-                      className="rounded-full border border-amber-200/80 bg-white/90 px-3 py-2 text-xs text-stone-700"
-                    >
-                      관리자
-                    </Link>
-                    <button
-                      type="button"
-                      onClick={() => void signOut()}
-                      className="rounded-full border border-stone-200 bg-white/90 px-3 py-2 text-xs text-stone-700"
-                    >
-                      로그아웃
-                    </button>
-                  </>
-                ) : (
-                  <Link
-                    href="/login"
-                    className="inline-flex items-center gap-1.5 rounded-full border border-amber-200/80 bg-white/90 px-3 py-2 text-xs text-stone-700"
-                  >
-                    로그인
-                    <ArrowRight className="h-3.5 w-3.5" />
-                  </Link>
-                )}
+                <AuthButtons isAuthenticated={isAuthenticated} onSignOut={handleSignOut} />
               </div>
 
               <div className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-4">
-                {NAV_ITEMS.map((item) => {
-                  const isActive = pathname === item.href;
-                  const Icon = navIcons[item.href as keyof typeof navIcons];
-
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      className={cx(
-                        "flex min-w-0 items-center justify-center gap-1.5 rounded-2xl border px-2 py-2.5 text-xs transition",
-                        isActive
-                          ? "border-amber-200/80 bg-gradient-to-r from-amber-100 via-rose-50 to-white text-stone-900 shadow-sm"
-                          : "border-stone-200 bg-white/70 text-stone-600",
-                      )}
-                    >
-                      <Icon className={cx("h-3.5 w-3.5 shrink-0", isActive && "text-amber-700")} />
-                      <span className="truncate">{item.label}</span>
-                    </Link>
-                  );
-                })}
+                {NAV_ITEMS.map((item) => (
+                  <NavItem
+                    key={item.href}
+                    href={item.href}
+                    label={item.label}
+                    isActive={pathname === item.href}
+                    variant="mobile"
+                  />
+                ))}
               </div>
             </header>
 

@@ -51,23 +51,26 @@ export async function PATCH(
     const nextPrimaryMap = resolvePrimaryFlags(reordered, imageId, patch.isPrimary);
     const admin = createSupabaseAdminClient();
 
-    for (const image of reordered) {
-      const isTarget = image.id === imageId;
-      const { error } = await admin
-        .from(IMAGES_TABLE)
-        .update({
-          caption: isTarget ? patch.caption ?? image.caption ?? "" : image.caption ?? "",
-          alt_text: isTarget ? patch.altText ?? image.alt_text ?? "" : image.alt_text ?? "",
-          sort_order: image.sort_order,
-          is_primary: nextPrimaryMap.get(image.id) ?? false,
-        })
-        .eq("id", image.id)
-        .eq("record_id", id)
-        .eq("owner_id", ownerId);
+    const updateResults = await Promise.all(
+      reordered.map((image) => {
+        const isTarget = image.id === imageId;
+        return admin
+          .from(IMAGES_TABLE)
+          .update({
+            caption: isTarget ? patch.caption ?? image.caption ?? "" : image.caption ?? "",
+            alt_text: isTarget ? patch.altText ?? image.alt_text ?? "" : image.alt_text ?? "",
+            sort_order: image.sort_order,
+            is_primary: nextPrimaryMap.get(image.id) ?? false,
+          })
+          .eq("id", image.id)
+          .eq("record_id", id)
+          .eq("owner_id", ownerId);
+      }),
+    );
 
-      if (error) {
-        throw error;
-      }
+    const firstError = updateResults.find((r) => r.error);
+    if (firstError?.error) {
+      throw firstError.error;
     }
 
     const updated = reordered.find((image) => image.id === imageId);

@@ -3,7 +3,16 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import type { AuthChangeEvent, Session, User } from "@supabase/supabase-js";
 
-import { seedRecords } from "@/lib/archive/mock-data";
+import type { ArchiveRecord as SeedRecord } from "@/lib/archive/types";
+
+let _seedRecords: SeedRecord[] | null = null;
+function getSeedRecords(): SeedRecord[] {
+  if (!_seedRecords) {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    _seedRecords = require("@/lib/archive/mock-data").seedRecords as SeedRecord[];
+  }
+  return _seedRecords;
+}
 import {
   deleteRemoteArchiveRecord,
   deleteRemoteImage,
@@ -41,7 +50,7 @@ export interface ArchiveBootstrapState {
 }
 
 function createSeedSnapshot() {
-  return sortRecords(structuredClone(seedRecords), "newest");
+  return sortRecords(structuredClone(getSeedRecords()), "newest");
 }
 
 function createLocalSnapshot() {

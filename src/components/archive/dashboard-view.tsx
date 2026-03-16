@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useMemo } from "react";
 
 import { RecordCard } from "@/components/archive/record-card";
 import { PageHeader } from "@/components/ui/page-header";
@@ -63,7 +64,7 @@ export function DashboardView({ serverData }: Readonly<DashboardViewProps>) {
         {} as Record<string, number>,
       );
 
-  const topTags = (() => {
+  const topTags = useMemo(() => {
     const tagCounts = new Map<string, number>();
     for (const record of records) {
       for (const tag of record.tags) {
@@ -71,7 +72,7 @@ export function DashboardView({ serverData }: Readonly<DashboardViewProps>) {
       }
     }
     return [...tagCounts.entries()].sort((left, right) => right[1] - left[1]).slice(0, 8);
-  })();
+  }, [records]);
 
   return (
     <div className="space-y-5">
