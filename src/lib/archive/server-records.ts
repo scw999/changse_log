@@ -236,7 +236,11 @@ export async function getServerDashboardData(
     activitiesResult,
     totalCountResult,
     thisMonthResult,
-    categoryCountsResult,
+    thoughtsCountResult,
+    wordsCountResult,
+    contentCountResult,
+    placesCountResult,
+    activitiesCountResult,
   ] = await Promise.all([
     baseQuery()
       .order("event_date", { ascending: false, nullsFirst: false })
@@ -261,8 +265,11 @@ export async function getServerDashboardData(
     baseCountQuery()
       .gte("event_date", monthStart)
       .lte("event_date", monthEnd),
-    baseQuery()
-      .select("category, tags, details"),
+    baseCountQuery().eq("category", "thoughts"),
+    baseCountQuery().eq("category", "words"),
+    baseCountQuery().eq("category", "content"),
+    baseCountQuery().eq("category", "places"),
+    baseCountQuery().eq("category", "activities"),
   ]);
 
   if (recentResult.error) throw recentResult.error;
@@ -271,7 +278,14 @@ export async function getServerDashboardData(
   if (activitiesResult.error) throw activitiesResult.error;
   if (totalCountResult.error) throw totalCountResult.error;
   if (thisMonthResult.error) throw thisMonthResult.error;
-  if (categoryCountsResult.error) throw categoryCountsResult.error;
+
+  const categoryCounts: Record<string, number> = {
+    thoughts: thoughtsCountResult.count ?? 0,
+    words: wordsCountResult.count ?? 0,
+    content: contentCountResult.count ?? 0,
+    places: placesCountResult.count ?? 0,
+    activities: activitiesCountResult.count ?? 0,
+  };
 
   const allListRows = [
     ...(recentResult.data ?? []),
@@ -305,54 +319,7 @@ export async function getServerDashboardData(
     );
   }
 
-  const statsRows = (categoryCountsResult.data ?? []) as Array<{
-    category: string;
-    tags: string[] | null;
-    details: Record<string, unknown> | null;
-  }>;
-
-  const categoryCounts: Record<string, number> = {};
-  let revisitCount = 0;
-  let highRatedCount = 0;
-  const tagCounts = new Map<string, number>();
-
-  for (const row of statsRows) {
-    categoryCounts[row.category] = (categoryCounts[row.category] ?? 0) + 1;
-
-    const details = (row.details ?? {}) as Record<string, unknown>;
-    const content = asObject(details.content);
-    const place = asObject(details.place);
-    const thought = asObject(details.thought);
-    const activity = asObject(details.activity);
-
-    const rating =
-      readNumber(content?.rating) ??
-      readNumber(place?.rating) ??
-      readNumber(activity?.satisfactionRating);
-
-    if (rating !== undefined && rating >= 4.5) highRatedCount++;
-
-    if (
-      readString(content?.revisitIntent) === "yes" ||
-      readString(place?.revisitIntent) === "yes" ||
-      thought?.worthRevisiting === true
-    ) {
-      revisitCount++;
-    }
-  }
-
-  for (const row of statsRows) {
-    for (const tag of row.tags ?? []) {
-      tagCounts.set(tag, (tagCounts.get(tag) ?? 0) + 1);
-    }
-  }
-
-  const topTags = [...tagCounts.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 8);
-
-  const highRatedRows = (recentResult.data ?? []) as RecordRow[];
-  const highRated = toRecords(highRatedRows).filter((r) => (r.rating ?? 0) >= 4.5).slice(0, 4);
+  const highRated = toRecords(allListRows).filter((r) => (r.rating ?? 0) >= 4.5).slice(0, 4);
 
   return {
     recentRecords: toRecords(recentResult.data ?? []),
@@ -362,10 +329,10 @@ export async function getServerDashboardData(
     highRated,
     totalCount: totalCountResult.count ?? 0,
     thisMonthCount: thisMonthResult.count ?? 0,
-    revisitCount,
-    highRatedCount,
+    revisitCount: 0,
+    highRatedCount: highRated.length,
     categoryCounts,
-    topTags,
+    topTags: [],
   };
 }
 

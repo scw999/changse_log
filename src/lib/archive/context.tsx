@@ -111,6 +111,13 @@ export function ArchiveProvider({
         return;
       }
 
+      // If server already authenticated, mark ready immediately
+      // and load records in background without blocking UI
+      if (initialAuth?.isAuthenticated) {
+        setIsRemote(true);
+        setIsReady(true);
+      }
+
       const cachedRecords = readRemoteRecordsCache(currentUser.id);
       if (cachedRecords && cachedRecords.length > 0) {
         setRecords(cachedRecords);
@@ -128,7 +135,7 @@ export function ArchiveProvider({
         }
       } catch {
         if (!ignore) {
-          if (!cachedRecords) {
+          if (!cachedRecords && !initialAuth?.isAuthenticated) {
             setRecords([]);
             setIsRemote(false);
           }

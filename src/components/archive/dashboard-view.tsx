@@ -46,9 +46,9 @@ export function DashboardView({ serverData }: Readonly<DashboardViewProps>) {
     : records.filter((record) =>
         (record.eventDate ?? record.createdAt).startsWith(currentMonth),
       ).length;
-  const revisitCount = useServerData
-    ? serverData!.revisitCount
-    : records.filter((record) => getRecordRevisitIntent(record) === "yes").length;
+  const revisitCount = records.length > 0
+    ? records.filter((record) => getRecordRevisitIntent(record) === "yes").length
+    : (serverData?.revisitCount ?? 0);
   const highRatedCount = useServerData
     ? serverData!.highRatedCount
     : highRated.length;
@@ -63,17 +63,15 @@ export function DashboardView({ serverData }: Readonly<DashboardViewProps>) {
         {} as Record<string, number>,
       );
 
-  const topTags = useServerData
-    ? serverData!.topTags
-    : (() => {
-        const tagCounts = new Map<string, number>();
-        for (const record of records) {
-          for (const tag of record.tags) {
-            tagCounts.set(tag, (tagCounts.get(tag) ?? 0) + 1);
-          }
-        }
-        return [...tagCounts.entries()].sort((left, right) => right[1] - left[1]).slice(0, 8);
-      })();
+  const topTags = (() => {
+    const tagCounts = new Map<string, number>();
+    for (const record of records) {
+      for (const tag of record.tags) {
+        tagCounts.set(tag, (tagCounts.get(tag) ?? 0) + 1);
+      }
+    }
+    return [...tagCounts.entries()].sort((left, right) => right[1] - left[1]).slice(0, 8);
+  })();
 
   return (
     <div className="space-y-5">
