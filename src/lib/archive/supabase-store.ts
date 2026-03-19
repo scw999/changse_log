@@ -226,32 +226,15 @@ function recordToRow(ownerId: string, record: ArchiveRecord) {
 }
 
 export function rowToRecord(row: RecordRow, images: ArchiveImage[]): ArchiveRecord {
-  const details = (row.details ?? {}) as {
-    thought?: ArchiveRecord["thought"];
-    word?: ArchiveRecord["word"];
-    content?: ArchiveRecord["content"];
-    place?: ArchiveRecord["place"];
-    activity?: ArchiveRecord["activity"];
-  };
-  const content =
-    details.content && typeof details.content === "object"
-      ? {
-          ...details.content,
-          titleOriginal:
-            details.content.titleOriginal ??
-            (details.content as unknown as Record<string, unknown>).originalTitle,
-          memorablePoints: normalizeStringList((details.content as unknown as Record<string, unknown>).memorablePoints),
-          weakPoints: normalizeStringList((details.content as unknown as Record<string, unknown>).weakPoints),
-        }
-      : details.content;
+  const details = (row.details ?? {}) as Record<string, unknown>;
 
   return {
     id: row.id,
     title: row.title,
-    body: row.body,
+    body: typeof row.body === "string" ? row.body : "",
     category: row.category,
     subcategory: row.subcategory,
-    tags: row.tags ?? [],
+    tags: normalizeStringList(row.tags),
     createdAt: row.created_at,
     eventDate: row.event_date ?? undefined,
     updatedAt: row.updated_at ?? row.created_at,
@@ -261,17 +244,19 @@ export function rowToRecord(row: RecordRow, images: ArchiveImage[]): ArchiveReco
     notes: row.notes ?? undefined,
     visibility: row.visibility ?? "private",
     images: normalizeImages(images),
-    thought: details.thought,
-    word: details.word,
-    content: content as ArchiveRecord["content"],
-    place: details.place,
-    activity: details.activity,
+    thought: normalizeThoughtDetails(details.thought),
+    word: normalizeWordDetails(details.word),
+    content: normalizeContentDetails(details.content),
+    place: normalizePlaceDetails(details.place),
+    activity: normalizeActivityDetails(details.activity),
   };
 }
 
 function normalizeStringList(value: unknown) {
   if (Array.isArray(value)) {
-    return value.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
+    return value
+      .filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+      .map((item) => item.trim());
   }
 
   if (typeof value === "string") {
@@ -280,6 +265,108 @@ function normalizeStringList(value: unknown) {
   }
 
   return [] as string[];
+}
+
+function asObject(value: unknown) {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : undefined;
+}
+
+function readString(value: unknown) {
+  return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
+}
+
+function readNumber(value: unknown) {
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
+function readBoolean(value: unknown) {
+  return typeof value === "boolean" ? value : undefined;
+}
+
+function normalizeThoughtDetails(value: unknown): ArchiveRecord["thought"] {
+  const entry = asObject(value);
+  if (!entry) return undefined;
+
+  return {
+    thoughtType: readString(entry.thoughtType) ?? "생각",
+    oneLineThought: readString(entry.oneLineThought) ?? "",
+    expandedNote: readString(entry.expandedNote) ?? "",
+    actionNeeded: readBoolean(entry.actionNeeded) ?? false,
+    worthRevisiting: readBoolean(entry.worthRevisiting) ?? false,
+  };
+}
+
+function normalizeWordDetails(value: unknown): ArchiveRecord["word"] {
+  const entry = asObject(value);
+  if (!entry) return undefined;
+
+  return {
+    term: readString(entry.term) ?? "",
+    meaning: readString(entry.meaning) ?? "",
+    example: readString(entry.example) ?? "",
+    whySaved: readString(entry.whySaved) ?? "",
+  };
+}
+
+function normalizeContentDetails(value: unknown): ArchiveRecord["content"] {
+  const entry = asObject(value);
+  if (!entry) return undefined;
+
+  const revisitIntent = readString(entry.revisitIntent);
+  return {
+    contentType: readString(entry.contentType) ?? "콘텐츠",
+    titleOriginal: readString(entry.titleOriginal) ?? readString(entry.originalTitle),
+    rating: readNumber(entry.rating) ?? 0,
+    oneLineReview: readString(entry.oneLineReview) ?? "",
+    memorablePoints: normalizeStringList(entry.memorablePoints),
+    weakPoints: normalizeStringList(entry.weakPoints),
+    memorableQuote: readString(entry.memorableQuote),
+    revisitIntent:
+      revisitIntent === "yes" || revisitIntent === "no" || revisitIntent === "none" || revisitIntent === "maybe"
+        ? (revisitIntent === "no" ? "none" : revisitIntent)
+        : "maybe",
+  };
+}
+
+function normalizePlaceDetails(value: unknown): ArchiveRecord["place"] {
+  const entry = asObject(value);
+  if (!entry) return undefined;
+
+  const revisitIntent = readString(entry.revisitIntent);
+  return {
+    placeName: readString(entry.placeName) ?? "",
+    area: readString(entry.area) ?? "",
+    address: readString(entry.address),
+    placeType: readString(entry.placeType) ?? "장소",
+    visitDate: readString(entry.visitDate),
+    rating: readNumber(entry.rating) ?? 0,
+    oneLineReview: readString(entry.oneLineReview) ?? "",
+    revisitIntent:
+      revisitIntent === "yes" || revisitIntent === "no" || revisitIntent === "none" || revisitIntent === "maybe"
+        ? (revisitIntent === "no" ? "none" : revisitIntent)
+        : "maybe",
+    withWhom: readString(entry.withWhom),
+    atmosphereNote: readString(entry.atmosphereNote),
+    priceNote: readString(entry.priceNote),
+  };
+}
+
+function normalizeActivityDetails(value: unknown): ArchiveRecord["activity"] {
+  const entry = asObject(value);
+  if (!entry) return undefined;
+
+  return {
+    activityType: readString(entry.activityType) ?? "활동",
+    location: readString(entry.location) ?? "",
+    distanceKm: readNumber(entry.distanceKm),
+    durationMinutes: readNumber(entry.durationMinutes),
+    difficulty: readNumber(entry.difficulty) ?? 0,
+    satisfactionRating: readNumber(entry.satisfactionRating) ?? 0,
+    physicalConditionNote: readString(entry.physicalConditionNote),
+    summary: readString(entry.summary) ?? "",
+  };
 }
 
 export async function hydrateImageUrls(client: SupabaseClient, rows: ImageRow[]) {

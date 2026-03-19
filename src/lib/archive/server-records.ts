@@ -338,30 +338,25 @@ export async function getServerDashboardData(
 
 function buildListRecord(row: RecordRow, thumbnail: ArchiveImage | null): ArchiveRecord {
   const details = (row.details ?? {}) as Record<string, unknown>;
-  const content = asObject(details.content);
-  const place = asObject(details.place);
-  const activity = asObject(details.activity);
-  const thought = asObject(details.thought);
-  const word = asObject(details.word);
+  const content = normalizeContentDetails(details.content);
+  const place = normalizePlaceDetails(details.place);
+  const activity = normalizeActivityDetails(details.activity);
+  const thought = normalizeThoughtDetails(details.thought);
+  const word = normalizeWordDetails(details.word);
 
-  const rating =
-    readNumber(content?.rating) ??
-    readNumber(place?.rating) ??
-    readNumber(activity?.satisfactionRating);
-  const locationLabel = readString(place?.placeName) ?? readString(activity?.location) ?? "";
-  const areaLabel = readString(place?.area) ?? readString(activity?.location) ?? "";
+  const rating = content?.rating ?? place?.rating ?? activity?.satisfactionRating;
+  const locationLabel = place?.placeName ?? activity?.location ?? "";
+  const areaLabel = place?.area ?? activity?.location ?? "";
   const revisitCandidate =
-    readString(content?.revisitIntent) === "yes" ||
-    readString(place?.revisitIntent) === "yes" ||
+    content?.revisitIntent === "yes" ||
+    place?.revisitIntent === "yes" ||
     thought?.worthRevisiting === true;
   const headline =
-    readString(thought?.oneLineThought) ??
-    (readString(word?.term) && readString(word?.meaning)
-      ? `${readString(word?.term)} · ${readString(word?.meaning)}`
-      : null) ??
-    readString(content?.oneLineReview) ??
-    readString(place?.oneLineReview) ??
-    readString(activity?.summary) ??
+    thought?.oneLineThought ||
+    (word?.term && word?.meaning ? `${word.term} · ${word.meaning}` : "") ||
+    content?.oneLineReview ||
+    place?.oneLineReview ||
+    activity?.summary ||
     "";
 
   return {
@@ -370,7 +365,7 @@ function buildListRecord(row: RecordRow, thumbnail: ArchiveImage | null): Archiv
     body: "",
     category: row.category,
     subcategory: row.subcategory,
-    tags: row.tags ?? [],
+    tags: normalizeStringList(row.tags),
     createdAt: row.created_at,
     updatedAt: row.updated_at ?? row.created_at,
     eventDate: row.event_date ?? undefined,
@@ -387,35 +382,40 @@ function buildListRecord(row: RecordRow, thumbnail: ArchiveImage | null): Archiv
     revisitCandidate,
     thumbnail,
     images: [],
+    thought,
+    word,
+    content,
+    place,
+    activity,
   };
 }
 
 function buildSearchText(
   row: RecordRow,
-  content?: Record<string, unknown>,
-  place?: Record<string, unknown>,
-  activity?: Record<string, unknown>,
-  thought?: Record<string, unknown>,
-  word?: Record<string, unknown>,
+  content?: ArchiveRecord["content"],
+  place?: ArchiveRecord["place"],
+  activity?: ArchiveRecord["activity"],
+  thought?: ArchiveRecord["thought"],
+  word?: ArchiveRecord["word"],
 ) {
   return [
     row.title,
     row.summary ?? "",
     row.body,
-    ...(row.tags ?? []),
-    readString(word?.term),
-    readString(word?.meaning),
-    readString(word?.example),
-    readString(content?.titleOriginal) ?? readString(content?.originalTitle),
-    readString(content?.oneLineReview),
-    ...(Array.isArray(content?.memorablePoints) ? content.memorablePoints : []),
-    readString(place?.placeName),
-    readString(place?.area),
-    readString(place?.oneLineReview),
-    readString(activity?.location),
-    readString(activity?.summary),
-    readString(thought?.oneLineThought),
-    readString(thought?.expandedNote),
+    ...normalizeStringList(row.tags),
+    word?.term,
+    word?.meaning,
+    word?.example,
+    content?.titleOriginal,
+    content?.oneLineReview,
+    ...(content?.memorablePoints ?? []),
+    place?.placeName,
+    place?.area,
+    place?.oneLineReview,
+    activity?.location,
+    activity?.summary,
+    thought?.oneLineThought,
+    thought?.expandedNote,
   ]
     .filter((value): value is string => typeof value === "string" && value.length > 0)
     .join(" ");
@@ -510,5 +510,108 @@ function readString(value: unknown) {
 }
 
 function readNumber(value: unknown) {
-  return typeof value === "number" ? value : undefined;
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
+function normalizeStringList(value: unknown) {
+  if (Array.isArray(value)) {
+    return value
+      .filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+      .map((item) => item.trim());
+  }
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    return trimmed ? [trimmed] : [];
+  }
+
+  return [] as string[];
+}
+
+function readBoolean(value: unknown) {
+  return typeof value === "boolean" ? value : undefined;
+}
+
+function normalizeThoughtDetails(value: unknown): ArchiveRecord["thought"] {
+  const entry = asObject(value);
+  if (!entry) return undefined;
+
+  return {
+    thoughtType: readString(entry.thoughtType) ?? "생각",
+    oneLineThought: readString(entry.oneLineThought) ?? "",
+    expandedNote: readString(entry.expandedNote) ?? "",
+    actionNeeded: readBoolean(entry.actionNeeded) ?? false,
+    worthRevisiting: readBoolean(entry.worthRevisiting) ?? false,
+  };
+}
+
+function normalizeWordDetails(value: unknown): ArchiveRecord["word"] {
+  const entry = asObject(value);
+  if (!entry) return undefined;
+
+  return {
+    term: readString(entry.term) ?? "",
+    meaning: readString(entry.meaning) ?? "",
+    example: readString(entry.example) ?? "",
+    whySaved: readString(entry.whySaved) ?? "",
+  };
+}
+
+function normalizeContentDetails(value: unknown): ArchiveRecord["content"] {
+  const entry = asObject(value);
+  if (!entry) return undefined;
+
+  const revisitIntent = readString(entry.revisitIntent);
+  return {
+    contentType: readString(entry.contentType) ?? "콘텐츠",
+    titleOriginal: readString(entry.titleOriginal) ?? readString(entry.originalTitle),
+    rating: readNumber(entry.rating) ?? 0,
+    oneLineReview: readString(entry.oneLineReview) ?? "",
+    memorablePoints: normalizeStringList(entry.memorablePoints),
+    weakPoints: normalizeStringList(entry.weakPoints),
+    memorableQuote: readString(entry.memorableQuote),
+    revisitIntent:
+      revisitIntent === "yes" || revisitIntent === "no" || revisitIntent === "none" || revisitIntent === "maybe"
+        ? (revisitIntent === "no" ? "none" : revisitIntent)
+        : "maybe",
+  };
+}
+
+function normalizePlaceDetails(value: unknown): ArchiveRecord["place"] {
+  const entry = asObject(value);
+  if (!entry) return undefined;
+
+  const revisitIntent = readString(entry.revisitIntent);
+  return {
+    placeName: readString(entry.placeName) ?? "",
+    area: readString(entry.area) ?? "",
+    address: readString(entry.address),
+    placeType: readString(entry.placeType) ?? "장소",
+    visitDate: readString(entry.visitDate),
+    rating: readNumber(entry.rating) ?? 0,
+    oneLineReview: readString(entry.oneLineReview) ?? "",
+    revisitIntent:
+      revisitIntent === "yes" || revisitIntent === "no" || revisitIntent === "none" || revisitIntent === "maybe"
+        ? (revisitIntent === "no" ? "none" : revisitIntent)
+        : "maybe",
+    withWhom: readString(entry.withWhom),
+    atmosphereNote: readString(entry.atmosphereNote),
+    priceNote: readString(entry.priceNote),
+  };
+}
+
+function normalizeActivityDetails(value: unknown): ArchiveRecord["activity"] {
+  const entry = asObject(value);
+  if (!entry) return undefined;
+
+  return {
+    activityType: readString(entry.activityType) ?? "활동",
+    location: readString(entry.location) ?? "",
+    distanceKm: readNumber(entry.distanceKm),
+    durationMinutes: readNumber(entry.durationMinutes),
+    difficulty: readNumber(entry.difficulty) ?? 0,
+    satisfactionRating: readNumber(entry.satisfactionRating) ?? 0,
+    physicalConditionNote: readString(entry.physicalConditionNote),
+    summary: readString(entry.summary) ?? "",
+  };
 }

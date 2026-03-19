@@ -38,6 +38,7 @@ export function RecordDetailView({
   const [loadedRecord, setLoadedRecord] = useState<ArchiveRecord | null>(initialRecord);
   const record = loadedRecord ?? initialRecord ?? previewRecord;
   const images = useMemo(() => normalizeImages(record?.images ?? []), [record?.images]);
+  const readableBody = useMemo(() => getReadableBody(record?.body), [record?.body]);
   const [activeImageIndex, setActiveImageIndex] = useState<number | null>(null);
 
   useEffect(() => {
@@ -186,15 +187,17 @@ export function RecordDetailView({
             <div className="rounded-[24px] border border-stone-100 bg-white/80 px-5 py-5">
               <p className="text-xs uppercase tracking-[0.3em] text-stone-500">Body</p>
               {isHtmlDocument(record.body) ? (
-                <iframe
-                  title={`${record.title} html body`}
-                  sandbox=""
-                  srcDoc={record.body}
-                  className="mt-3 min-h-[900px] w-full rounded-[18px] border border-stone-200 bg-white"
-                />
+                <div className="mt-3 space-y-3">
+                  <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs leading-6 text-amber-900">
+                    HTML 원문은 상세 페이지를 불안정하게 만들 수 있어 읽기용 문서 형태로 표시합니다.
+                  </div>
+                  <p className="whitespace-pre-line text-sm leading-8 text-stone-700">
+                    {readableBody || "이 기록에 저장된 본문이 없습니다."}
+                  </p>
+                </div>
               ) : (
                 <p className="mt-3 whitespace-pre-line text-sm leading-8 text-stone-700">
-                  {record.body || "이 기록에 저장된 본문이 없습니다."}
+                  {readableBody || "이 기록에 저장된 본문이 없습니다."}
                 </p>
               )}
             </div>
@@ -365,6 +368,35 @@ function isHtmlDocument(value?: string) {
   if (!value) return false;
   const normalized = value.trim().toLowerCase();
   return normalized.startsWith("<!doctype html") || normalized.startsWith("<html");
+}
+
+function getReadableBody(value?: string) {
+  if (!value) {
+    return "";
+  }
+
+  if (!isHtmlDocument(value)) {
+    return value;
+  }
+
+  if (typeof window !== "undefined" && typeof DOMParser !== "undefined") {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(value, "text/html");
+    doc.querySelectorAll("script, style, noscript, iframe, svg").forEach((node) => node.remove());
+    const text = doc.body?.textContent?.replace(/\s+/g, " ").trim() ?? "";
+    return text;
+  }
+
+  return value
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function formatListValue(value: unknown) {
