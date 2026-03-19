@@ -59,7 +59,7 @@ export function RecordCard({ record, compact = false }: Readonly<RecordCardProps
         )}
       />
       <div className="relative">
-        {thumbnail ? (
+        {thumbnail?.url ? (
           <div className="mb-4 overflow-hidden rounded-[24px] border border-white/70 bg-stone-100">
             <div className={cx("relative", compact ? "aspect-[16/9]" : "aspect-[5/3]")}>
               <Image
@@ -97,7 +97,7 @@ export function RecordCard({ record, compact = false }: Readonly<RecordCardProps
         {headline ? <p className="mt-3 text-sm leading-6 text-stone-700">{headline}</p> : null}
 
         <div className="mt-4 flex flex-wrap gap-2">
-          {record.tags.slice(0, compact ? 3 : 5).map((tag) => (
+          {(Array.isArray(record.tags) ? record.tags : []).slice(0, compact ? 3 : 5).map((tag) => (
             <button
               key={tag}
               type="button"

@@ -17,11 +17,16 @@ export function formatDate(value?: string) {
     return "날짜 없음";
   }
 
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return "날짜 없음";
+  }
+
   return new Intl.DateTimeFormat("ko-KR", {
     year: "numeric",
     month: "long",
     day: "numeric",
-  }).format(new Date(value));
+  }).format(parsed);
 }
 
 export function cx(...values: Array<string | false | null | undefined>) {
@@ -33,11 +38,16 @@ export function formatShortDate(value?: string) {
     return "날짜 없음";
   }
 
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return "날짜 없음";
+  }
+
   return new Intl.DateTimeFormat("ko-KR", {
     year: "2-digit",
     month: "2-digit",
     day: "2-digit",
-  }).format(new Date(value));
+  }).format(parsed);
 }
 
 export function formatMonth(value?: string) {
@@ -45,10 +55,15 @@ export function formatMonth(value?: string) {
     return "기록 시점 미정";
   }
 
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return "기록 시점 미정";
+  }
+
   return new Intl.DateTimeFormat("ko-KR", {
     year: "numeric",
     month: "long",
-  }).format(new Date(value));
+  }).format(parsed);
 }
 
 export function getCategoryMeta(category: CategoryKey) {
@@ -89,7 +104,7 @@ export function getImportanceLabel(importance: number) {
 }
 
 export function getSourceLabel(record: ArchiveRecord) {
-  return SOURCE_LABELS[record.sourceType];
+  return SOURCE_LABELS[record.sourceType] ?? record.sourceType ?? "알 수 없음";
 }
 
 export function getSearchableText(record: ArchiveRecord) {
@@ -103,7 +118,7 @@ export function getSearchableText(record: ArchiveRecord) {
     record.summary,
     record.notes,
     record.subcategory,
-    record.tags.join(" "),
+    Array.isArray(record.tags) ? record.tags.join(" ") : "",
     record.word?.term,
     record.word?.meaning,
     record.word?.example,
@@ -174,7 +189,7 @@ export function getRecordMetaLine(record: ArchiveRecord) {
   const parts = [getCategoryMeta(record.category).label, record.subcategory, formatShortDate(getPrimaryDate(record))];
   const rating = getRecordRating(record);
 
-  if (rating !== null) {
+  if (rating !== null && Number.isFinite(rating)) {
     parts.push(`${rating.toFixed(1)}점`);
   }
 
@@ -234,7 +249,7 @@ export function normalizeRecord(record: ArchiveRecord) {
     summary: record.summary.trim(),
     notes: record.notes?.trim(),
     visibility: record.visibility ?? "private",
-    tags: normalizeTags(record.tags),
+    tags: normalizeTags(Array.isArray(record.tags) ? record.tags : []),
     images: record.images ?? [],
   };
 }

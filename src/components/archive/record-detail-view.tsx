@@ -37,7 +37,10 @@ export function RecordDetailView({
   const previewRecord = records.find((item) => item.id === id) ?? null;
   const [loadedRecord, setLoadedRecord] = useState<ArchiveRecord | null>(initialRecord);
   const record = loadedRecord ?? initialRecord ?? previewRecord;
-  const images = useMemo(() => normalizeImages(record?.images ?? []), [record?.images]);
+  const images = useMemo(
+    () => normalizeImages(record?.images ?? []).filter((img) => img.url),
+    [record?.images],
+  );
   const readableBody = useMemo(() => getReadableBody(record?.body), [record?.body]);
   const [activeImageIndex, setActiveImageIndex] = useState<number | null>(null);
 
@@ -121,7 +124,7 @@ export function RecordDetailView({
   return (
     <div className="space-y-5">
       <PageHeader
-        eyebrow={`${record.subcategory} 기록`}
+        eyebrow={`${record.subcategory || record.category || "기타"} 기록`}
         title={record.title}
         description={record.summary}
       >
@@ -153,7 +156,7 @@ export function RecordDetailView({
             <DetailItem
               icon={<Star className="h-4 w-4" />}
               label="중요도"
-              value={`${record.importance} / 5 · ${getImportanceLabel(record.importance)}`}
+              value={`${record.importance ?? "-"} / 5 · ${getImportanceLabel(record.importance ?? 1)}`}
             />
             {area ? (
               <DetailItem icon={<MapPin className="h-4 w-4" />} label="지역" value={area} />
@@ -164,7 +167,7 @@ export function RecordDetailView({
                 태그
               </div>
               <div className="mt-3 flex flex-wrap gap-2">
-                {record.tags.map((tag) => (
+                {(Array.isArray(record.tags) ? record.tags : []).map((tag) => (
                   <Link
                     key={tag}
                     href={`/recent?tag=${encodeURIComponent(tag)}`}
@@ -428,13 +431,20 @@ function DetailItem({
   );
 }
 
-function DetailGrid({ items }: Readonly<{ items: Array<[string, string]> }>) {
+function safeString(value: unknown): string {
+  if (value === null || value === undefined) return "-";
+  if (typeof value === "string") return value || "-";
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  return "-";
+}
+
+function DetailGrid({ items }: Readonly<{ items: Array<[string, unknown]> }>) {
   return (
     <div className="grid gap-4 md:grid-cols-2">
       {items.map(([label, value]) => (
         <div key={label} className="rounded-[24px] border border-stone-100 bg-white/80 px-5 py-5">
           <p className="text-xs uppercase tracking-[0.3em] text-stone-500">{label}</p>
-          <p className="mt-3 whitespace-pre-line text-sm leading-7 text-stone-700">{value}</p>
+          <p className="mt-3 whitespace-pre-line text-sm leading-7 text-stone-700">{safeString(value)}</p>
         </div>
       ))}
     </div>
