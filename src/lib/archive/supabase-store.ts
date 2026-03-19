@@ -240,6 +240,8 @@ export function rowToRecord(row: RecordRow, images: ArchiveImage[]): ArchiveReco
           titleOriginal:
             details.content.titleOriginal ??
             (details.content as unknown as Record<string, unknown>).originalTitle,
+          memorablePoints: normalizeStringList((details.content as unknown as Record<string, unknown>).memorablePoints),
+          weakPoints: normalizeStringList((details.content as unknown as Record<string, unknown>).weakPoints),
         }
       : details.content;
 
@@ -265,6 +267,19 @@ export function rowToRecord(row: RecordRow, images: ArchiveImage[]): ArchiveReco
     place: details.place,
     activity: details.activity,
   };
+}
+
+function normalizeStringList(value: unknown) {
+  if (Array.isArray(value)) {
+    return value.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
+  }
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    return trimmed ? [trimmed] : [];
+  }
+
+  return [] as string[];
 }
 
 export async function hydrateImageUrls(client: SupabaseClient, rows: ImageRow[]) {

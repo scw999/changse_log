@@ -185,9 +185,18 @@ export function RecordDetailView({
             </div>
             <div className="rounded-[24px] border border-stone-100 bg-white/80 px-5 py-5">
               <p className="text-xs uppercase tracking-[0.3em] text-stone-500">Body</p>
-              <p className="mt-3 whitespace-pre-line text-sm leading-8 text-stone-700">
-                {record.body || "이 기록에 저장된 본문이 없습니다."}
-              </p>
+              {isHtmlDocument(record.body) ? (
+                <iframe
+                  title={`${record.title} html body`}
+                  sandbox=""
+                  srcDoc={record.body}
+                  className="mt-3 min-h-[900px] w-full rounded-[18px] border border-stone-200 bg-white"
+                />
+              ) : (
+                <p className="mt-3 whitespace-pre-line text-sm leading-8 text-stone-700">
+                  {record.body || "이 기록에 저장된 본문이 없습니다."}
+                </p>
+              )}
             </div>
             {record.notes ? (
               <div className="rounded-[24px] border border-stone-100 bg-white/80 px-5 py-5">
@@ -268,8 +277,8 @@ export function RecordDetailView({
               ["콘텐츠 유형", record.content.contentType],
               ["원제", record.content.titleOriginal || "-"],
               ["한 줄 리뷰", record.content.oneLineReview],
-              ["기억에 남은 점", record.content.memorablePoints.join(", ") || "-"],
-              ["아쉬운 점", record.content.weakPoints?.join(", ") || "-"],
+              ["기억에 남은 점", formatListValue(record.content.memorablePoints)],
+              ["아쉬운 점", formatListValue(record.content.weakPoints)],
               ["기억에 남는 문장", record.content.memorableQuote || "-"],
               ["다시 보기 의도", record.content.revisitIntent],
             ]}
@@ -350,6 +359,25 @@ function hasFullRecordDetail(record: ArchiveRecord | null) {
       record.activity ||
       (record.images?.length ?? 0) > 0,
   );
+}
+
+function isHtmlDocument(value?: string) {
+  if (!value) return false;
+  const normalized = value.trim().toLowerCase();
+  return normalized.startsWith("<!doctype html") || normalized.startsWith("<html");
+}
+
+function formatListValue(value: unknown) {
+  if (Array.isArray(value)) {
+    const items = value.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
+    return items.length > 0 ? items.join(", ") : "-";
+  }
+
+  if (typeof value === "string") {
+    return value.trim().length > 0 ? value.trim() : "-";
+  }
+
+  return "-";
 }
 
 function DetailItem({

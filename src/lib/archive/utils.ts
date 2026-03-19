@@ -109,7 +109,11 @@ export function getSearchableText(record: ArchiveRecord) {
     record.word?.example,
     record.content?.titleOriginal,
     record.content?.oneLineReview,
-    record.content?.memorablePoints.join(" "),
+    Array.isArray(record.content?.memorablePoints)
+      ? record.content.memorablePoints.join(" ")
+      : typeof record.content?.memorablePoints === "string"
+        ? record.content.memorablePoints
+        : undefined,
     record.place?.placeName,
     record.place?.area,
     record.place?.oneLineReview,
