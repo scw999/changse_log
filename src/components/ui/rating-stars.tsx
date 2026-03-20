@@ -1,7 +1,7 @@
-import { cx, toFiniteNumber } from "@/lib/archive/utils";
+import { cx, safeFixed, toFiniteNumber } from "@/lib/archive/utils";
 
 interface RatingStarsProps {
-  rating: number;
+  rating: unknown;
   className?: string;
 }
 
@@ -18,6 +18,7 @@ function StarRow({ className }: Readonly<{ className: string }>) {
 export function RatingStars({ rating, className }: Readonly<RatingStarsProps>) {
   const normalizedRating = toFiniteNumber(rating) ?? 0;
   const width = `${Math.max(0, Math.min(normalizedRating, 5)) * 20}%`;
+  const label = safeFixed(rating, 1, "0.0");
 
   return (
     <div className={cx("inline-flex items-center gap-2", className)}>

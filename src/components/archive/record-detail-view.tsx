@@ -27,6 +27,7 @@ import {
   getRecordRating,
   getSourceLabel,
   normalizeImages,
+  toFiniteNumber,
 } from "@/lib/archive/utils";
 
 export function RecordDetailView({
@@ -158,7 +159,7 @@ export function RecordDetailView({
             <DetailItem
               icon={<Star className="h-4 w-4" />}
               label="중요도"
-              value={`${record.importance ?? "-"} / 5 · ${getImportanceLabel(record.importance ?? 1)}`}
+              value={`${toFiniteNumber(record.importance) ?? "-"} / 5 · ${getImportanceLabel(record.importance)}`}
             />
             {area ? (
               <DetailItem icon={<MapPin className="h-4 w-4" />} label="지역" value={area} />
@@ -319,13 +320,13 @@ export function RecordDetailView({
             items={[
               ["활동 유형", record.activity.activityType],
               ["위치", record.activity.location],
-              ["거리", record.activity.distanceKm ? `${record.activity.distanceKm} km` : "-"],
+              ["거리", toFiniteNumber(record.activity.distanceKm) ? `${toFiniteNumber(record.activity.distanceKm)} km` : "-"],
               [
                 "시간",
-                record.activity.durationMinutes ? `${record.activity.durationMinutes}분` : "-",
+                toFiniteNumber(record.activity.durationMinutes) ? `${toFiniteNumber(record.activity.durationMinutes)}분` : "-",
               ],
-              ["난이도", `${record.activity.difficulty}/5`],
-              ["만족도", `${record.activity.satisfactionRating}/5`],
+              ["난이도", `${toFiniteNumber(record.activity.difficulty) ?? "-"}/5`],
+              ["만족도", `${toFiniteNumber(record.activity.satisfactionRating) ?? "-"}/5`],
               ["컨디션 메모", record.activity.physicalConditionNote || "-"],
               ["요약", record.activity.summary],
             ]}

@@ -5,6 +5,7 @@ import {
   getRecordRevisitIntent,
   getSearchableText,
   sortRecords,
+  toFiniteNumber,
 } from "@/lib/archive/utils";
 
 export function filterRecords(records: ArchiveRecord[], filters: RecordFilterState) {
@@ -44,7 +45,7 @@ export function filterRecords(records: ArchiveRecord[], filters: RecordFilterSta
         }
       }
 
-      if (filters.importanceMin !== null && record.importance < filters.importanceMin) {
+      if (filters.importanceMin !== null && (toFiniteNumber(record.importance) ?? 0) < filters.importanceMin) {
         return false;
       }
 
