@@ -8,7 +8,7 @@ import {
   isAllowedViewerEmail,
   isSupabaseConfigured,
 } from "@/lib/supabase/env";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getServerUser } from "@/lib/supabase/server";
 
 import Providers from "./providers";
 import "./globals.css";
@@ -72,10 +72,7 @@ async function getInitialAuth(): Promise<ArchiveBootstrapAuth> {
   }
 
   try {
-    const supabase = await createSupabaseServerClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const user = await getServerUser();
 
     if (!user || !isAllowedViewerEmail(user.email)) {
       return { isAuthenticated: false, userEmail: null };

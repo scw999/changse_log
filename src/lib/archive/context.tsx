@@ -6,12 +6,15 @@ import type { AuthChangeEvent, Session, User } from "@supabase/supabase-js";
 import type { ArchiveRecord as SeedRecord } from "@/lib/archive/types";
 
 let _seedRecords: SeedRecord[] | null = null;
-function getSeedRecords(): SeedRecord[] {
+async function loadSeedRecords(): Promise<SeedRecord[]> {
   if (!_seedRecords) {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    _seedRecords = require("@/lib/archive/mock-data").seedRecords as SeedRecord[];
+    const mod = await import("@/lib/archive/mock-data");
+    _seedRecords = mod.seedRecords as SeedRecord[];
   }
   return _seedRecords;
+}
+function getSeedRecordsSync(): SeedRecord[] {
+  return _seedRecords ?? [];
 }
 import {
   deleteRemoteArchiveRecord,
@@ -50,7 +53,12 @@ export interface ArchiveBootstrapState {
 }
 
 function createSeedSnapshot() {
-  return sortRecords(structuredClone(getSeedRecords()), "newest");
+  return sortRecords(structuredClone(getSeedRecordsSync()), "newest");
+}
+
+async function loadSeedSnapshot() {
+  const seeds = await loadSeedRecords();
+  return sortRecords(structuredClone(seeds), "newest");
 }
 
 function createLocalSnapshot() {
@@ -91,7 +99,13 @@ export function ArchiveProvider({
 
     async function bootstrap() {
       if (!isSupabaseConfigured()) {
-        setRecords(createLocalSnapshot());
+        const stored = readRecordsFromStorage();
+        if (stored && stored.length > 0) {
+          setRecords(sortRecords(stored, "newest"));
+        } else {
+          const seeds = await loadSeedSnapshot();
+          if (!ignore) setRecords(seeds);
+        }
         setIsRemote(false);
         setIsReady(true);
         setAuthState({ isAuthenticated: false, userEmail: null });
@@ -268,7 +282,8 @@ export function ArchiveProvider({
         setLocalRecords(records.filter((record) => record.id !== recordId));
       },
       resetRecords: async () => {
-        setLocalRecords(createSeedSnapshot());
+        const seeds = await loadSeedSnapshot();
+        setLocalRecords(seeds);
       },
       uploadImages: async (recordId, files) => {
         if (!user || !isSupabaseConfigured()) {

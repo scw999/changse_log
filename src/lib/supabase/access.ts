@@ -7,17 +7,14 @@ import {
   isSupabaseConfigured,
   isViewerEmailConfigured,
 } from "@/lib/supabase/env";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getServerUser } from "@/lib/supabase/server";
 
 export async function requireViewerUser(nextPath = "/") {
   if (!isSupabaseConfigured()) {
     return null;
   }
 
-  const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getServerUser();
 
   if (!user) {
     redirect(`/login?next=${encodeURIComponent(nextPath)}`);
@@ -35,10 +32,7 @@ export async function getAuthenticatedAdminUser() {
     return null;
   }
 
-  const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getServerUser();
 
   if (!user) {
     return null;
@@ -56,10 +50,7 @@ export async function requireAdminUser(nextPath = "/admin") {
     return null;
   }
 
-  const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getServerUser();
 
   if (!user) {
     redirect(`/login?next=${encodeURIComponent(nextPath)}`);
