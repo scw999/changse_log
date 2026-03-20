@@ -89,13 +89,13 @@ export function toFiniteNumber(value: unknown) {
 }
 
 export function getRecordRating(record: ArchiveRecord) {
-  return (
+  const value =
     toFiniteNumber(record.rating) ??
     toFiniteNumber(record.content?.rating) ??
     toFiniteNumber(record.place?.rating) ??
     toFiniteNumber(record.activity?.satisfactionRating) ??
-    null
-  );
+    null;
+  return typeof value === "number" ? value : null;
 }
 
 export function getRecordArea(record: ArchiveRecord) {
@@ -208,7 +208,7 @@ export function getRecordMetaLine(record: ArchiveRecord) {
   const parts = [getCategoryMeta(record.category).label, record.subcategory, formatShortDate(getPrimaryDate(record))];
   const rating = getRecordRating(record);
 
-  if (rating !== null) {
+  if (rating !== null && typeof rating === "number") {
     parts.push(`${rating.toFixed(1)}점`);
   }
 
