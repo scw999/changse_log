@@ -120,13 +120,15 @@ export function RecordDetailView({
 
   const rating = getRecordRating(record);
   const area = getRecordArea(record);
+  const title = toDisplayText(record.title, "제목 없음");
+  const summary = toDisplayText(record.summary);
 
   return (
     <div className="space-y-5">
       <PageHeader
         eyebrow={`${record.subcategory || record.category || "기타"} 기록`}
-        title={record.title}
-        description={record.summary}
+        title={title}
+        description={summary}
       >
         <div className="rounded-[28px] border border-white/80 bg-white/80 px-4 py-4 shadow-sm">
           <Link
@@ -185,7 +187,7 @@ export function RecordDetailView({
           <div className="space-y-5">
             <div className="rounded-[24px] border border-stone-100 bg-stone-50/80 px-5 py-5">
               <p className="text-xs uppercase tracking-[0.3em] text-stone-500">Summary</p>
-              <p className="mt-3 text-base leading-8 text-stone-800">{record.summary}</p>
+              <p className="mt-3 text-base leading-8 text-stone-800">{summary}</p>
             </div>
             <div className="rounded-[24px] border border-stone-100 bg-white/80 px-5 py-5">
               <p className="text-xs uppercase tracking-[0.3em] text-stone-500">Body</p>
@@ -204,11 +206,11 @@ export function RecordDetailView({
                 </p>
               )}
             </div>
-            {record.notes ? (
+            {hasDisplayText(record.notes) ? (
               <div className="rounded-[24px] border border-stone-100 bg-white/80 px-5 py-5">
                 <p className="text-xs uppercase tracking-[0.3em] text-stone-500">Notes</p>
                 <p className="mt-3 whitespace-pre-line text-sm leading-8 text-stone-700">
-                  {record.notes}
+                  {toDisplayText(record.notes)}
                 </p>
               </div>
             ) : null}
@@ -367,14 +369,14 @@ function hasFullRecordDetail(record: ArchiveRecord | null) {
   );
 }
 
-function isHtmlDocument(value?: string) {
-  if (!value) return false;
+function isHtmlDocument(value?: unknown) {
+  if (typeof value !== "string") return false;
   const normalized = value.trim().toLowerCase();
   return normalized.startsWith("<!doctype html") || normalized.startsWith("<html");
 }
 
-function getReadableBody(value?: string) {
-  if (!value) {
+function getReadableBody(value?: unknown) {
+  if (typeof value !== "string") {
     return "";
   }
 
@@ -400,6 +402,23 @@ function getReadableBody(value?: string) {
     .replace(/&gt;/gi, ">")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function hasDisplayText(value: unknown) {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+function toDisplayText(value: unknown, fallback = "") {
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    return trimmed || fallback;
+  }
+
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+
+  return fallback;
 }
 
 function formatListValue(value: unknown) {
