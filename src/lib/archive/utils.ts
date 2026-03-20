@@ -95,13 +95,13 @@ export function safeFixed(value: unknown, digits: number, fallback = "-") {
 }
 
 export function getRecordRating(record: ArchiveRecord) {
-  return (
+  const value =
     toFiniteNumber(record.rating) ??
     toFiniteNumber(record.content?.rating) ??
     toFiniteNumber(record.place?.rating) ??
     toFiniteNumber(record.activity?.satisfactionRating) ??
-    null
-  );
+    null;
+  return typeof value === "number" ? value : null;
 }
 
 export function getRecordArea(record: ArchiveRecord) {
@@ -215,10 +215,9 @@ export function getRecordMetaLine(record: ArchiveRecord) {
   const parts = [getCategoryMeta(record.category).label, record.subcategory, formatShortDate(getPrimaryDate(record))];
   const rating = getRecordRating(record);
 
-  const formattedRating = safeFixed(rating, 1, "");
+  if (rating !== null && typeof rating === "number") {
+    parts.push(`${rating.toFixed(1)}점`);
 
-  if (formattedRating) {
-    parts.push(`${formattedRating}점`);
   }
 
   return parts.join(" · ");
