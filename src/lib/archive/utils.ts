@@ -70,11 +70,30 @@ export function getCategoryMeta(category: CategoryKey) {
   return CATEGORY_META[category];
 }
 
+export function toFiniteNumber(value: unknown) {
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : null;
+  }
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return null;
+    }
+
+    const parsed = Number(trimmed);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  return null;
+}
+
 export function getRecordRating(record: ArchiveRecord) {
-  return record.rating ?? (
-    record.content?.rating ??
-    record.place?.rating ??
-    record.activity?.satisfactionRating ??
+  return (
+    toFiniteNumber(record.rating) ??
+    toFiniteNumber(record.content?.rating) ??
+    toFiniteNumber(record.place?.rating) ??
+    toFiniteNumber(record.activity?.satisfactionRating) ??
     null
   );
 }
@@ -189,7 +208,7 @@ export function getRecordMetaLine(record: ArchiveRecord) {
   const parts = [getCategoryMeta(record.category).label, record.subcategory, formatShortDate(getPrimaryDate(record))];
   const rating = getRecordRating(record);
 
-  if (rating !== null && Number.isFinite(rating)) {
+  if (rating !== null) {
     parts.push(`${rating.toFixed(1)}점`);
   }
 
