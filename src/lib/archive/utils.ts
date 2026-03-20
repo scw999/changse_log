@@ -88,6 +88,12 @@ export function toFiniteNumber(value: unknown) {
   return null;
 }
 
+export function safeFixed(value: unknown, digits: number, fallback = "-") {
+  const normalized = toFiniteNumber(value);
+
+  return normalized === null ? fallback : normalized.toFixed(digits);
+}
+
 export function getRecordRating(record: ArchiveRecord) {
   return (
     toFiniteNumber(record.rating) ??
@@ -118,8 +124,9 @@ export function isRevisitCandidate(record: ArchiveRecord) {
   return record.revisitCandidate ?? getRecordRevisitIntent(record) === "yes";
 }
 
-export function getImportanceLabel(importance: number) {
-  return IMPORTANCE_LABELS[Math.max(0, Math.min(importance - 1, IMPORTANCE_LABELS.length - 1))];
+export function getImportanceLabel(importance: unknown) {
+  const n = toFiniteNumber(importance) ?? 1;
+  return IMPORTANCE_LABELS[Math.max(0, Math.min(n - 1, IMPORTANCE_LABELS.length - 1))];
 }
 
 export function getSourceLabel(record: ArchiveRecord) {
@@ -178,7 +185,7 @@ export function sortRecords(records: ArchiveRecord[], sort: SortOption) {
     }
 
     if (sort === "importance") {
-      return right.importance - left.importance;
+      return (toFiniteNumber(right.importance) ?? 0) - (toFiniteNumber(left.importance) ?? 0);
     }
 
     return getPrimaryDate(right).localeCompare(getPrimaryDate(left));
@@ -208,8 +215,10 @@ export function getRecordMetaLine(record: ArchiveRecord) {
   const parts = [getCategoryMeta(record.category).label, record.subcategory, formatShortDate(getPrimaryDate(record))];
   const rating = getRecordRating(record);
 
-  if (rating !== null) {
-    parts.push(`${rating.toFixed(1)}점`);
+  const formattedRating = safeFixed(rating, 1, "");
+
+  if (formattedRating) {
+    parts.push(`${formattedRating}점`);
   }
 
   return parts.join(" · ");

@@ -17,6 +17,7 @@ import {
   getRepresentativeImage,
   getTypeSpecificHeadline,
   isRevisitCandidate,
+  toFiniteNumber,
 } from "@/lib/archive/utils";
 
 interface RecordCardProps {
@@ -125,7 +126,7 @@ export function RecordCard({ record, compact = false }: Readonly<RecordCardProps
           ) : null}
           <span className="inline-flex items-center gap-1.5">
             <Tags className="h-3.5 w-3.5" />
-            중요도 {record.importance}점 {getImportanceLabel(record.importance)}
+            중요도 {toFiniteNumber(record.importance) ?? "-"}점 {getImportanceLabel(record.importance)}
           </span>
           {isRevisitCandidate(record) ? (
             <span className="inline-flex items-center gap-1.5 text-emerald-700">
