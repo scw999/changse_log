@@ -229,20 +229,20 @@ export function rowToRecord(row: RecordRow, images: ArchiveImage[]): ArchiveReco
   const details = (row.details ?? {}) as Record<string, unknown>;
 
   return {
-    id: row.id,
-    title: row.title,
+    id: typeof row.id === "string" && row.id.trim().length > 0 ? row.id : crypto.randomUUID(),
+    title: readString(row.title) ?? "제목 없음",
     body: typeof row.body === "string" ? row.body : "",
-    category: row.category,
-    subcategory: row.subcategory,
+    category: normalizeCategory(row.category),
+    subcategory: readString(row.subcategory) ?? "기타",
     tags: normalizeStringList(row.tags),
-    createdAt: row.created_at,
-    eventDate: row.event_date ?? undefined,
-    updatedAt: row.updated_at ?? row.created_at,
-    importance: row.importance,
-    sourceType: row.source_type,
-    summary: row.summary ?? "",
-    notes: row.notes ?? undefined,
-    visibility: row.visibility ?? "private",
+    createdAt: readString(row.created_at) ?? new Date(0).toISOString(),
+    eventDate: readString(row.event_date) ?? undefined,
+    updatedAt: readString(row.updated_at) ?? readString(row.created_at) ?? new Date(0).toISOString(),
+    importance: normalizeImportance(row.importance),
+    sourceType: normalizeSourceType(row.source_type),
+    summary: readString(row.summary) ?? "",
+    notes: readString(row.notes) ?? undefined,
+    visibility: normalizeVisibility(row.visibility),
     images: normalizeImages(images),
     thought: normalizeThoughtDetails(details.thought),
     word: normalizeWordDetails(details.word),
@@ -265,6 +265,30 @@ function normalizeStringList(value: unknown) {
   }
 
   return [] as string[];
+}
+
+function normalizeCategory(value: unknown): ArchiveRecord["category"] {
+  return value === "thoughts" || value === "words" || value === "content" || value === "places" || value === "activities"
+    ? value
+    : "thoughts";
+}
+
+function normalizeSourceType(value: unknown): ArchiveRecord["sourceType"] {
+  return value === "telegram" || value === "manual" || value === "imported" || value === "assistant"
+    ? value
+    : "manual";
+}
+
+function normalizeVisibility(value: unknown): ArchiveRecord["visibility"] {
+  return value === "shared" || value === "private" ? value : "private";
+}
+
+function normalizeImportance(value: unknown) {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return 3;
+  }
+
+  return Math.max(1, Math.min(5, Math.round(value)));
 }
 
 function asObject(value: unknown) {

@@ -360,20 +360,20 @@ function buildListRecord(row: RecordRow, thumbnail: ArchiveImage | null): Archiv
     "";
 
   return {
-    id: row.id,
-    title: row.title,
+    id: typeof row.id === "string" && row.id.trim().length > 0 ? row.id : crypto.randomUUID(),
+    title: readString(row.title) ?? "제목 없음",
     body: "",
-    category: row.category,
-    subcategory: row.subcategory,
+    category: normalizeCategory(row.category),
+    subcategory: readString(row.subcategory) ?? "기타",
     tags: normalizeStringList(row.tags),
-    createdAt: row.created_at,
-    updatedAt: row.updated_at ?? row.created_at,
-    eventDate: row.event_date ?? undefined,
-    importance: row.importance,
-    sourceType: row.source_type,
-    summary: row.summary ?? "",
+    createdAt: readString(row.created_at) ?? new Date(0).toISOString(),
+    updatedAt: readString(row.updated_at) ?? readString(row.created_at) ?? new Date(0).toISOString(),
+    eventDate: readString(row.event_date) ?? undefined,
+    importance: normalizeImportance(row.importance),
+    sourceType: normalizeSourceType(row.source_type),
+    summary: readString(row.summary) ?? "",
     notes: undefined,
-    visibility: row.visibility ?? "private",
+    visibility: normalizeVisibility(row.visibility),
     searchText: buildSearchText(row, content, place, activity, thought, word),
     rating: rating ?? null,
     headline,
@@ -497,6 +497,30 @@ async function createThumbnailMap(
   });
 
   return imageMap;
+}
+
+function normalizeCategory(value: unknown): ArchiveRecord["category"] {
+  return value === "thoughts" || value === "words" || value === "content" || value === "places" || value === "activities"
+    ? value
+    : "thoughts";
+}
+
+function normalizeSourceType(value: unknown): ArchiveRecord["sourceType"] {
+  return value === "telegram" || value === "manual" || value === "imported" || value === "assistant"
+    ? value
+    : "manual";
+}
+
+function normalizeVisibility(value: unknown): ArchiveRecord["visibility"] {
+  return value === "shared" || value === "private" ? value : "private";
+}
+
+function normalizeImportance(value: unknown) {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return 3;
+  }
+
+  return Math.max(1, Math.min(5, Math.round(value)));
 }
 
 function asObject(value: unknown) {
