@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Noto_Sans_KR, Noto_Serif_KR } from "next/font/google";
 
 import { AppShell } from "@/components/layout/app-shell";
+import { GlobalRuntimeErrorListener } from "@/components/layout/global-runtime-error-listener";
 import type { ArchiveBootstrapAuth } from "@/lib/archive/context";
 import {
   isAllowedViewerEmail,
@@ -56,6 +57,7 @@ export default async function RootLayout({
   return (
     <html lang="ko">
       <body className={`${notoSansKr.variable} ${notoSerifKr.variable} antialiased`}>
+        <GlobalRuntimeErrorListener />
         <Providers initialAuth={initialAuth}>
           <AppShell>{children}</AppShell>
         </Providers>
