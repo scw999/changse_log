@@ -395,6 +395,8 @@ function BodyRenderer({ body }: Readonly<{ body: string }>) {
 
       // Scope <style> blocks: wrap every rule with .body-rendered so
       // the CSS does not leak out to the rest of the page.
+      // DOMParser moves <style> to <head>, so we must move them back to
+      // <body> after scoping so they are included in body.innerHTML.
       doc.querySelectorAll("style").forEach((style) => {
         style.textContent = (style.textContent ?? "").replace(
           // Replace top-level selectors (skip @-rules content)
@@ -413,13 +415,16 @@ function BodyRenderer({ body }: Readonly<{ body: string }>) {
             return `${scoped}{`;
           },
         );
+        // Move scoped <style> into <body> so it's included in innerHTML
+        doc.body?.prepend(style);
       });
 
       // Preserve <link rel="stylesheet"> (e.g. Google Fonts) from <head>
-      const headLinks = Array.from(doc.querySelectorAll('link[rel="stylesheet"]'))
-        .map((l) => l.outerHTML)
-        .join("");
-      return headLinks + (doc.body?.innerHTML ?? "");
+      doc.querySelectorAll('link[rel="stylesheet"]').forEach((link) => {
+        doc.body?.prepend(link);
+      });
+
+      return doc.body?.innerHTML ?? "";
     }
 
     // Server fallback: strip script tags (keep style for CSS)
