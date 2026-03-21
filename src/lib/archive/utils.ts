@@ -215,9 +215,8 @@ export function getRecordMetaLine(record: ArchiveRecord) {
   const parts = [getCategoryMeta(record.category).label, record.subcategory, formatShortDate(getPrimaryDate(record))];
   const rating = getRecordRating(record);
 
-  if (rating !== null && typeof rating === "number") {
-    parts.push(`${rating.toFixed(1)}점`);
-
+  if (rating !== null) {
+    parts.push(`${safeFixed(rating, 1, "0.0")}점`);
   }
 
   return parts.join(" · ");

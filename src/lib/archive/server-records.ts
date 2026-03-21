@@ -204,11 +204,12 @@ export async function getServerDashboardData(
   const ownerId = await resolveAllowedOwnerId();
   const canViewPrivate = isAllowedAdminEmail(viewerEmail);
 
-  function baseQuery() {
+  function baseDataQuery() {
     let q = admin
       .from(RECORDS_TABLE)
       .select(
         "id, owner_id, title, body, category, subcategory, tags, created_at, updated_at, event_date, importance, source_type, summary, notes, visibility, details",
+        { count: "exact" },
       )
       .eq("owner_id", ownerId);
     if (!canViewPrivate) q = q.eq("visibility", "shared");
@@ -229,12 +230,10 @@ export async function getServerDashboardData(
   const monthEndDate = new Date(new Date(monthStart).getFullYear(), new Date(monthStart).getMonth() + 1, 0);
   const monthEnd = monthEndDate.toISOString().slice(0, 10);
 
+  // Single data query (limit 20) replaces 4 separate data queries.
+  // 5 lightweight head-only count queries stay for accurate category totals.
   const [
-    recentResult,
-    thoughtsResult,
-    placesResult,
-    activitiesResult,
-    totalCountResult,
+    recentBatchResult,
     thisMonthResult,
     thoughtsCountResult,
     wordsCountResult,
@@ -242,26 +241,11 @@ export async function getServerDashboardData(
     placesCountResult,
     activitiesCountResult,
   ] = await Promise.all([
-    baseQuery()
+    baseDataQuery()
       .order("event_date", { ascending: false, nullsFirst: false })
       .order("updated_at", { ascending: false })
-      .limit(4),
-    baseQuery()
-      .eq("category", "thoughts")
-      .order("event_date", { ascending: false, nullsFirst: false })
-      .order("updated_at", { ascending: false })
-      .limit(3),
-    baseQuery()
-      .eq("category", "places")
-      .order("event_date", { ascending: false, nullsFirst: false })
-      .order("updated_at", { ascending: false })
-      .limit(2),
-    baseQuery()
-      .eq("category", "activities")
-      .order("event_date", { ascending: false, nullsFirst: false })
-      .order("updated_at", { ascending: false })
-      .limit(2),
-    baseCountQuery(),
+      .order("created_at", { ascending: false })
+      .limit(20),
     baseCountQuery()
       .gte("event_date", monthStart)
       .lte("event_date", monthEnd),
@@ -272,11 +256,7 @@ export async function getServerDashboardData(
     baseCountQuery().eq("category", "activities"),
   ]);
 
-  if (recentResult.error) throw recentResult.error;
-  if (thoughtsResult.error) throw thoughtsResult.error;
-  if (placesResult.error) throw placesResult.error;
-  if (activitiesResult.error) throw activitiesResult.error;
-  if (totalCountResult.error) throw totalCountResult.error;
+  if (recentBatchResult.error) throw recentBatchResult.error;
   if (thisMonthResult.error) throw thisMonthResult.error;
 
   const categoryCounts: Record<string, number> = {
@@ -287,15 +267,8 @@ export async function getServerDashboardData(
     activities: activitiesCountResult.count ?? 0,
   };
 
-  const allListRows = [
-    ...(recentResult.data ?? []),
-    ...(thoughtsResult.data ?? []),
-    ...(placesResult.data ?? []),
-    ...(activitiesResult.data ?? []),
-  ] as RecordRow[];
-
-  const uniqueRows = [...new Map(allListRows.map((r) => [r.id, r])).values()];
-  const recordIds = uniqueRows.map((row) => row.id);
+  const allRows = (recentBatchResult.data ?? []) as RecordRow[];
+  const recordIds = allRows.map((row) => row.id);
 
   let signedImageMap = new Map<string, ArchiveImage>();
   if (recordIds.length > 0) {
@@ -313,21 +286,23 @@ export async function getServerDashboardData(
     signedImageMap = await createThumbnailMap(admin, representativeRows);
   }
 
-  function toRecords(rows: unknown[]) {
-    return (rows as RecordRow[]).map((row) =>
-      buildListRecord(row, signedImageMap.get(row.id) ?? null),
-    );
-  }
+  const allRecords = allRows.map((row) =>
+    buildListRecord(row, signedImageMap.get(row.id) ?? null),
+  );
 
-  const highRated = toRecords(allListRows).filter((r) => (r.rating ?? 0) >= 4.5).slice(0, 4);
+  const recentRecords = allRecords.slice(0, 4);
+  const recentThoughts = allRecords.filter((r) => r.category === "thoughts").slice(0, 3);
+  const recentPlaces = allRecords.filter((r) => r.category === "places").slice(0, 2);
+  const recentActivities = allRecords.filter((r) => r.category === "activities").slice(0, 2);
+  const highRated = allRecords.filter((r) => (r.rating ?? 0) >= 4.5).slice(0, 4);
 
   return {
-    recentRecords: toRecords(recentResult.data ?? []),
-    recentThoughts: toRecords(thoughtsResult.data ?? []),
-    recentPlaces: toRecords(placesResult.data ?? []),
-    recentActivities: toRecords(activitiesResult.data ?? []),
+    recentRecords,
+    recentThoughts,
+    recentPlaces,
+    recentActivities,
     highRated,
-    totalCount: totalCountResult.count ?? 0,
+    totalCount: recentBatchResult.count ?? 0,
     thisMonthCount: thisMonthResult.count ?? 0,
     revisitCount: 0,
     highRatedCount: highRated.length,

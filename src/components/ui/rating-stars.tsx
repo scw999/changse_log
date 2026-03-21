@@ -28,7 +28,7 @@ export function RatingStars({ rating, className }: Readonly<RatingStarsProps>) {
           <StarRow className="text-amber-500" />
         </div>
       </div>
-      <span className="text-sm font-medium text-stone-700">{Number(normalizedRating).toFixed(1)}</span>
+      <span className="text-sm font-medium text-stone-700">{label}</span>
     </div>
   );
 }
