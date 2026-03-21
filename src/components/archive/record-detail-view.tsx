@@ -364,9 +364,17 @@ function hasFullRecordDetail(record: ArchiveRecord | null) {
   );
 }
 
+function isRichHtml(text: string) {
+  // Detect content that is already structured HTML (has block-level tags or <style>)
+  return /<(div|section|article|header|footer|nav|style|table|figure|aside|main)\b/i.test(text);
+}
+
 function BodyRenderer({ body }: Readonly<{ body: string }>) {
   const html = useMemo(() => {
-    const raw = marked.parse(body, { async: false, breaks: true }) as string;
+    // If the body is already rich HTML, skip markdown parsing to preserve structure
+    const raw = isRichHtml(body)
+      ? body
+      : (marked.parse(body, { async: false, breaks: true }) as string);
 
     // Sanitize: remove dangerous elements & event-handler attributes
     // but keep <style> so custom CSS is preserved.
