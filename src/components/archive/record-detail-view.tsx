@@ -370,9 +370,11 @@ function isRichHtml(text: string) {
 }
 
 function BodyRenderer({ body }: Readonly<{ body: string }>) {
+  const rich = isRichHtml(body);
+
   const html = useMemo(() => {
     // If the body is already rich HTML, skip markdown parsing to preserve structure
-    const raw = isRichHtml(body)
+    const raw = rich
       ? body
       : (marked.parse(body, { async: false, breaks: true }) as string);
 
@@ -403,8 +405,8 @@ function BodyRenderer({ body }: Readonly<{ body: string }>) {
               .map((s: string) => {
                 const trimmed = s.trim();
                 if (!trimmed) return s;
-                // Replace body/html selectors with scoped container
-                if (/^(body|html|\*)$/i.test(trimmed)) return `.body-rendered`;
+                // Replace body/html/:root/* selectors with scoped container
+                if (/^(body|html|\*|:root)$/i.test(trimmed)) return `.body-rendered`;
                 return `.body-rendered ${trimmed}`;
               })
               .join(",");
@@ -413,14 +415,24 @@ function BodyRenderer({ body }: Readonly<{ body: string }>) {
         );
       });
 
-      return doc.body?.innerHTML ?? "";
+      // Preserve <link rel="stylesheet"> (e.g. Google Fonts) from <head>
+      const headLinks = Array.from(doc.querySelectorAll('link[rel="stylesheet"]'))
+        .map((l) => l.outerHTML)
+        .join("");
+      return headLinks + (doc.body?.innerHTML ?? "");
     }
 
     // Server fallback: strip script tags (keep style for CSS)
     return raw.replace(/<script[\s\S]*?<\/script>/gi, "");
-  }, [body]);
+  }, [body, rich]);
 
-  return <div className="body-rendered prose-record mt-3" dangerouslySetInnerHTML={{ __html: html }} />;
+  // For rich HTML with its own CSS, skip prose-record to avoid style conflicts
+  return (
+    <div
+      className={rich ? "body-rendered mt-3" : "body-rendered prose-record mt-3"}
+      dangerouslySetInnerHTML={{ __html: html }}
+    />
+  );
 }
 
 function isHtmlDocument(value?: unknown) {
@@ -445,9 +457,14 @@ function getReadableBody(value?: unknown) {
       const styles = Array.from(doc.querySelectorAll("style"))
         .map((s) => s.outerHTML)
         .join("\n");
+      // Preserve <link> tags (e.g. Google Fonts) from <head>
+      const links = Array.from(doc.querySelectorAll('link[rel="stylesheet"]'))
+        .map((l) => l.outerHTML)
+        .join("\n");
       doc.querySelectorAll("style").forEach((node) => node.remove());
       const inner = doc.body?.innerHTML?.trim() ?? "";
-      body = styles ? `${styles}\n${inner}` : inner;
+      const preserved = [links, styles].filter(Boolean).join("\n");
+      body = preserved ? `${preserved}\n${inner}` : inner;
     } else {
       // Extract <style> blocks before stripping the wrapper
       const styleBlocks: string[] = [];
