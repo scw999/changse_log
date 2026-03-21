@@ -430,6 +430,10 @@ function getReadableBody(value?: unknown) {
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'");
 
+  // Strip leading whitespace from every line so indented HTML
+  // is not treated as a code block by the markdown parser.
+  body = body.replace(/^[ \t]+/gm, "");
+
   return body;
 }
 
