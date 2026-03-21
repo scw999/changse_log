@@ -411,27 +411,33 @@ function getReadableBody(value?: unknown) {
     return "";
   }
 
-  if (!isHtmlDocument(value)) {
-    return value;
+  let body = value;
+
+  if (isHtmlDocument(body)) {
+    // For full HTML documents, extract the <body> inner HTML so
+    // ReactMarkdown + rehype-raw can render it properly.
+    if (typeof window !== "undefined" && typeof DOMParser !== "undefined") {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(body, "text/html");
+      doc.querySelectorAll("script, style, noscript").forEach((node) => node.remove());
+      body = doc.body?.innerHTML?.trim() ?? "";
+    } else {
+      // Server-side fallback: strip wrapper tags but keep inner HTML
+      body = body
+        .replace(/^[\s\S]*?<body[^>]*>/i, "")
+        .replace(/<\/body>[\s\S]*$/i, "")
+        .replace(/<script[\s\S]*?<\/script>/gi, "")
+        .replace(/<style[\s\S]*?<\/style>/gi, "")
+        .replace(/<noscript[\s\S]*?<\/noscript>/gi, "")
+        .trim();
+    }
   }
 
-  // For full HTML documents, extract the <body> inner HTML so
-  // ReactMarkdown + rehype-raw can render it properly.
-  if (typeof window !== "undefined" && typeof DOMParser !== "undefined") {
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(value, "text/html");
-    doc.querySelectorAll("script, style, noscript").forEach((node) => node.remove());
-    return doc.body?.innerHTML?.trim() ?? "";
-  }
+  // Remove leading whitespace from lines starting with HTML tags
+  // so markdown doesn't treat indented HTML as code blocks.
+  body = body.replace(/^[ \t]+(<\/?[a-zA-Z])/gm, "$1");
 
-  // Server-side fallback: strip wrapper tags but keep inner HTML
-  return value
-    .replace(/^[\s\S]*?<body[^>]*>/i, "")
-    .replace(/<\/body>[\s\S]*$/i, "")
-    .replace(/<script[\s\S]*?<\/script>/gi, "")
-    .replace(/<style[\s\S]*?<\/style>/gi, "")
-    .replace(/<noscript[\s\S]*?<\/noscript>/gi, "")
-    .trim();
+  return body;
 }
 
 function hasDisplayText(value: unknown) {
