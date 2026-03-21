@@ -14,6 +14,10 @@ import {
   Tags,
   X,
 } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import rehypeRaw from "rehype-raw";
+import rehypeSanitize from "rehype-sanitize";
+import remarkGfm from "remark-gfm";
 
 import { PageHeader } from "@/components/ui/page-header";
 import { RatingStars } from "@/components/ui/rating-stars";
@@ -192,18 +196,18 @@ export function RecordDetailView({
             </div>
             <div className="rounded-[24px] border border-stone-100 bg-white/80 px-5 py-5">
               <p className="text-xs uppercase tracking-[0.3em] text-stone-500">Body</p>
-              {isHtmlDocument(record.body) ? (
-                <div className="mt-3 space-y-3">
-                  <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs leading-6 text-amber-900">
-                    HTML 원문은 상세 페이지를 불안정하게 만들 수 있어 읽기용 문서 형태로 표시합니다.
-                  </div>
-                  <p className="whitespace-pre-line text-sm leading-8 text-stone-700">
-                    {readableBody || "이 기록에 저장된 본문이 없습니다."}
-                  </p>
+              {readableBody ? (
+                <div className="prose-record mt-3">
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    rehypePlugins={[rehypeRaw, rehypeSanitize]}
+                  >
+                    {readableBody}
+                  </ReactMarkdown>
                 </div>
               ) : (
-                <p className="mt-3 whitespace-pre-line text-sm leading-8 text-stone-700">
-                  {readableBody || "이 기록에 저장된 본문이 없습니다."}
+                <p className="mt-3 text-sm leading-8 text-stone-700">
+                  이 기록에 저장된 본문이 없습니다.
                 </p>
               )}
             </div>
@@ -385,23 +389,22 @@ function getReadableBody(value?: unknown) {
     return value;
   }
 
+  // For full HTML documents, extract the <body> inner HTML so
+  // ReactMarkdown + rehype-raw can render it properly.
   if (typeof window !== "undefined" && typeof DOMParser !== "undefined") {
     const parser = new DOMParser();
     const doc = parser.parseFromString(value, "text/html");
-    doc.querySelectorAll("script, style, noscript, iframe, svg").forEach((node) => node.remove());
-    const text = doc.body?.textContent?.replace(/\s+/g, " ").trim() ?? "";
-    return text;
+    doc.querySelectorAll("script, style, noscript").forEach((node) => node.remove());
+    return doc.body?.innerHTML?.trim() ?? "";
   }
 
+  // Server-side fallback: strip wrapper tags but keep inner HTML
   return value
-    .replace(/<script[\s\S]*?<\/script>/gi, " ")
-    .replace(/<style[\s\S]*?<\/style>/gi, " ")
-    .replace(/<[^>]+>/g, " ")
-    .replace(/&nbsp;/gi, " ")
-    .replace(/&amp;/gi, "&")
-    .replace(/&lt;/gi, "<")
-    .replace(/&gt;/gi, ">")
-    .replace(/\s+/g, " ")
+    .replace(/^[\s\S]*?<body[^>]*>/i, "")
+    .replace(/<\/body>[\s\S]*$/i, "")
+    .replace(/<script[\s\S]*?<\/script>/gi, "")
+    .replace(/<style[\s\S]*?<\/style>/gi, "")
+    .replace(/<noscript[\s\S]*?<\/noscript>/gi, "")
     .trim();
 }
 

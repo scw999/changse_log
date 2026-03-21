@@ -77,3 +77,122 @@ a {
 .field::placeholder {
   color: rgba(111, 102, 95, 0.7);
 }
+
+/* ── prose-record: markdown / HTML body styling ── */
+.prose-record {
+  font-size: 0.875rem;
+  line-height: 2;
+  color: #44403c; /* stone-700 */
+}
+
+.prose-record h1,
+.prose-record h2,
+.prose-record h3,
+.prose-record h4,
+.prose-record h5,
+.prose-record h6 {
+  font-weight: 600;
+  color: #1c1917; /* stone-900 */
+  margin-top: 1.5em;
+  margin-bottom: 0.5em;
+  line-height: 1.4;
+}
+
+.prose-record h1 { font-size: 1.5rem; }
+.prose-record h2 { font-size: 1.25rem; }
+.prose-record h3 { font-size: 1.125rem; }
+
+.prose-record p {
+  margin-top: 0.75em;
+  margin-bottom: 0.75em;
+}
+
+.prose-record a {
+  color: #b45309; /* amber-700 */
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.prose-record a:hover {
+  color: #92400e;
+}
+
+.prose-record strong { font-weight: 600; }
+.prose-record em { font-style: italic; }
+
+.prose-record ul,
+.prose-record ol {
+  padding-left: 1.5em;
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+}
+
+.prose-record ul { list-style-type: disc; }
+.prose-record ol { list-style-type: decimal; }
+
+.prose-record li {
+  margin-top: 0.25em;
+  margin-bottom: 0.25em;
+}
+
+.prose-record blockquote {
+  border-left: 3px solid rgba(101, 83, 66, 0.25);
+  padding-left: 1em;
+  margin: 1em 0;
+  color: #57534e; /* stone-600 */
+  font-style: italic;
+}
+
+.prose-record code {
+  font-size: 0.8125rem;
+  background: rgba(101, 83, 66, 0.08);
+  border-radius: 4px;
+  padding: 0.15em 0.35em;
+}
+
+.prose-record pre {
+  background: rgba(28, 25, 23, 0.04);
+  border: 1px solid rgba(101, 83, 66, 0.12);
+  border-radius: 12px;
+  padding: 1em;
+  overflow-x: auto;
+  margin: 1em 0;
+}
+
+.prose-record pre code {
+  background: none;
+  padding: 0;
+  border-radius: 0;
+}
+
+.prose-record hr {
+  border: none;
+  border-top: 1px solid rgba(101, 83, 66, 0.15);
+  margin: 1.5em 0;
+}
+
+.prose-record table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1em 0;
+  font-size: 0.8125rem;
+}
+
+.prose-record th,
+.prose-record td {
+  border: 1px solid rgba(101, 83, 66, 0.15);
+  padding: 0.5em 0.75em;
+  text-align: left;
+}
+
+.prose-record th {
+  background: rgba(101, 83, 66, 0.06);
+  font-weight: 600;
+}
+
+.prose-record img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 12px;
+  margin: 1em 0;
+}
