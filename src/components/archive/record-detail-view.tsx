@@ -369,27 +369,50 @@ function BodyRenderer({ body }: Readonly<{ body: string }>) {
     const raw = marked.parse(body, { async: false, breaks: true }) as string;
 
     // Sanitize: remove dangerous elements & event-handler attributes
+    // but keep <style> so custom CSS is preserved.
     if (typeof window !== "undefined") {
       const parser = new DOMParser();
       const doc = parser.parseFromString(raw, "text/html");
-      doc.querySelectorAll("script, style, noscript, iframe, object, embed").forEach((el) => el.remove());
+      doc.querySelectorAll("script, noscript, iframe, object, embed").forEach((el) => el.remove());
       doc.querySelectorAll("*").forEach((el) => {
+        if (el.tagName === "STYLE") return;
         for (const attr of [...el.attributes]) {
           if (attr.name.startsWith("on")) {
             el.removeAttribute(attr.name);
           }
         }
       });
+
+      // Scope <style> blocks: wrap every rule with .body-rendered so
+      // the CSS does not leak out to the rest of the page.
+      doc.querySelectorAll("style").forEach((style) => {
+        style.textContent = (style.textContent ?? "").replace(
+          // Replace top-level selectors (skip @-rules content)
+          /([^{}@]+)\{/g,
+          (_m, selectors: string) => {
+            const scoped = selectors
+              .split(",")
+              .map((s: string) => {
+                const trimmed = s.trim();
+                if (!trimmed) return s;
+                // Replace body/html selectors with scoped container
+                if (/^(body|html|\*)$/i.test(trimmed)) return `.body-rendered`;
+                return `.body-rendered ${trimmed}`;
+              })
+              .join(",");
+            return `${scoped}{`;
+          },
+        );
+      });
+
       return doc.body?.innerHTML ?? "";
     }
 
-    // Server fallback: strip script/style tags
-    return raw
-      .replace(/<script[\s\S]*?<\/script>/gi, "")
-      .replace(/<style[\s\S]*?<\/style>/gi, "");
+    // Server fallback: strip script tags (keep style for CSS)
+    return raw.replace(/<script[\s\S]*?<\/script>/gi, "");
   }, [body]);
 
-  return <div className="prose-record mt-3" dangerouslySetInnerHTML={{ __html: html }} />;
+  return <div className="body-rendered prose-record mt-3" dangerouslySetInnerHTML={{ __html: html }} />;
 }
 
 function isHtmlDocument(value?: unknown) {
@@ -409,9 +432,21 @@ function getReadableBody(value?: unknown) {
     if (typeof window !== "undefined" && typeof DOMParser !== "undefined") {
       const parser = new DOMParser();
       const doc = parser.parseFromString(body, "text/html");
-      doc.querySelectorAll("script, style, noscript").forEach((node) => node.remove());
-      body = doc.body?.innerHTML?.trim() ?? "";
+      doc.querySelectorAll("script, noscript").forEach((node) => node.remove());
+      // Preserve <style> from <head> so CSS is available in the rendered body
+      const styles = Array.from(doc.querySelectorAll("style"))
+        .map((s) => s.outerHTML)
+        .join("\n");
+      doc.querySelectorAll("style").forEach((node) => node.remove());
+      const inner = doc.body?.innerHTML?.trim() ?? "";
+      body = styles ? `${styles}\n${inner}` : inner;
     } else {
+      // Extract <style> blocks before stripping the wrapper
+      const styleBlocks: string[] = [];
+      body.replace(/<style[\s\S]*?<\/style>/gi, (m) => {
+        styleBlocks.push(m);
+        return "";
+      });
       body = body
         .replace(/^[\s\S]*?<body[^>]*>/i, "")
         .replace(/<\/body>[\s\S]*$/i, "")
@@ -419,6 +454,9 @@ function getReadableBody(value?: unknown) {
         .replace(/<style[\s\S]*?<\/style>/gi, "")
         .replace(/<noscript[\s\S]*?<\/noscript>/gi, "")
         .trim();
+      if (styleBlocks.length > 0) {
+        body = `${styleBlocks.join("\n")}\n${body}`;
+      }
     }
   }
 
@@ -429,6 +467,13 @@ function getReadableBody(value?: unknown) {
     .replace(/&amp;/g, "&")
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'");
+
+  // Unwrap code fences that contain HTML tags so they render as HTML
+  // instead of being displayed as code blocks.
+  body = body.replace(/```(?:html?)?\s*\n([\s\S]*?)```/g, (_match, content: string) => {
+    if (/<[a-zA-Z]/.test(content)) return content;
+    return _match;
+  });
 
   // Strip leading whitespace from every line so indented HTML
   // is not treated as a code block by the markdown parser.
