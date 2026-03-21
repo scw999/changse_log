@@ -16,8 +16,34 @@ import {
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import rehypeRaw from "rehype-raw";
-import rehypeSanitize from "rehype-sanitize";
+import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import remarkGfm from "remark-gfm";
+
+/** Allow class attributes on all elements + common HTML tags that defaultSchema may omit */
+const sanitizeSchema = {
+  ...defaultSchema,
+  attributes: {
+    ...defaultSchema.attributes,
+    "*": [...(defaultSchema.attributes?.["*"] ?? []), "className", "class", "style"],
+  },
+  tagNames: [
+    ...(defaultSchema.tagNames ?? []),
+    "div",
+    "span",
+    "section",
+    "article",
+    "aside",
+    "header",
+    "footer",
+    "nav",
+    "main",
+    "figure",
+    "figcaption",
+    "details",
+    "summary",
+    "mark",
+  ],
+};
 
 import { PageHeader } from "@/components/ui/page-header";
 import { RatingStars } from "@/components/ui/rating-stars";
@@ -200,7 +226,7 @@ export function RecordDetailView({
                 <div className="prose-record mt-3">
                   <ReactMarkdown
                     remarkPlugins={[remarkGfm]}
-                    rehypePlugins={[rehypeRaw, rehypeSanitize]}
+                    rehypePlugins={[rehypeRaw, [rehypeSanitize, sanitizeSchema]]}
                   >
                     {readableBody}
                   </ReactMarkdown>
