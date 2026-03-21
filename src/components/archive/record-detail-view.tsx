@@ -14,36 +14,7 @@ import {
   Tags,
   X,
 } from "lucide-react";
-import ReactMarkdown from "react-markdown";
-import rehypeRaw from "rehype-raw";
-import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
-import remarkGfm from "remark-gfm";
-
-/** Allow class attributes on all elements + common HTML tags that defaultSchema may omit */
-const sanitizeSchema = {
-  ...defaultSchema,
-  attributes: {
-    ...defaultSchema.attributes,
-    "*": [...(defaultSchema.attributes?.["*"] ?? []), "className", "class", "style"],
-  },
-  tagNames: [
-    ...(defaultSchema.tagNames ?? []),
-    "div",
-    "span",
-    "section",
-    "article",
-    "aside",
-    "header",
-    "footer",
-    "nav",
-    "main",
-    "figure",
-    "figcaption",
-    "details",
-    "summary",
-    "mark",
-  ],
-};
+import { marked } from "marked";
 
 import { PageHeader } from "@/components/ui/page-header";
 import { RatingStars } from "@/components/ui/rating-stars";
@@ -223,14 +194,7 @@ export function RecordDetailView({
             <div className="rounded-[24px] border border-stone-100 bg-white/80 px-5 py-5">
               <p className="text-xs uppercase tracking-[0.3em] text-stone-500">Body</p>
               {readableBody ? (
-                <div className="prose-record mt-3">
-                  <ReactMarkdown
-                    remarkPlugins={[remarkGfm]}
-                    rehypePlugins={[rehypeRaw, [rehypeSanitize, sanitizeSchema]]}
-                  >
-                    {readableBody}
-                  </ReactMarkdown>
-                </div>
+                <BodyRenderer body={readableBody} />
               ) : (
                 <p className="mt-3 text-sm leading-8 text-stone-700">
                   이 기록에 저장된 본문이 없습니다.
@@ -400,6 +364,34 @@ function hasFullRecordDetail(record: ArchiveRecord | null) {
   );
 }
 
+function BodyRenderer({ body }: Readonly<{ body: string }>) {
+  const html = useMemo(() => {
+    const raw = marked.parse(body, { async: false, breaks: true }) as string;
+
+    // Sanitize: remove dangerous elements & event-handler attributes
+    if (typeof window !== "undefined") {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(raw, "text/html");
+      doc.querySelectorAll("script, style, noscript, iframe, object, embed").forEach((el) => el.remove());
+      doc.querySelectorAll("*").forEach((el) => {
+        for (const attr of [...el.attributes]) {
+          if (attr.name.startsWith("on")) {
+            el.removeAttribute(attr.name);
+          }
+        }
+      });
+      return doc.body?.innerHTML ?? "";
+    }
+
+    // Server fallback: strip script/style tags
+    return raw
+      .replace(/<script[\s\S]*?<\/script>/gi, "")
+      .replace(/<style[\s\S]*?<\/style>/gi, "");
+  }, [body]);
+
+  return <div className="prose-record mt-3" dangerouslySetInnerHTML={{ __html: html }} />;
+}
+
 function isHtmlDocument(value?: unknown) {
   if (typeof value !== "string") return false;
   const normalized = value.trim().toLowerCase();
@@ -411,27 +403,38 @@ function getReadableBody(value?: unknown) {
     return "";
   }
 
-  if (!isHtmlDocument(value)) {
-    return value;
+  let body = value;
+
+  if (isHtmlDocument(body)) {
+    if (typeof window !== "undefined" && typeof DOMParser !== "undefined") {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(body, "text/html");
+      doc.querySelectorAll("script, style, noscript").forEach((node) => node.remove());
+      body = doc.body?.innerHTML?.trim() ?? "";
+    } else {
+      body = body
+        .replace(/^[\s\S]*?<body[^>]*>/i, "")
+        .replace(/<\/body>[\s\S]*$/i, "")
+        .replace(/<script[\s\S]*?<\/script>/gi, "")
+        .replace(/<style[\s\S]*?<\/style>/gi, "")
+        .replace(/<noscript[\s\S]*?<\/noscript>/gi, "")
+        .trim();
+    }
   }
 
-  // For full HTML documents, extract the <body> inner HTML so
-  // ReactMarkdown + rehype-raw can render it properly.
-  if (typeof window !== "undefined" && typeof DOMParser !== "undefined") {
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(value, "text/html");
-    doc.querySelectorAll("script, style, noscript").forEach((node) => node.remove());
-    return doc.body?.innerHTML?.trim() ?? "";
-  }
+  // Decode common HTML entities so markup isn't displayed as text
+  body = body
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&amp;/g, "&")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'");
 
-  // Server-side fallback: strip wrapper tags but keep inner HTML
-  return value
-    .replace(/^[\s\S]*?<body[^>]*>/i, "")
-    .replace(/<\/body>[\s\S]*$/i, "")
-    .replace(/<script[\s\S]*?<\/script>/gi, "")
-    .replace(/<style[\s\S]*?<\/style>/gi, "")
-    .replace(/<noscript[\s\S]*?<\/noscript>/gi, "")
-    .trim();
+  // Strip leading whitespace from every line so indented HTML
+  // is not treated as a code block by the markdown parser.
+  body = body.replace(/^[ \t]+/gm, "");
+
+  return body;
 }
 
 function hasDisplayText(value: unknown) {
