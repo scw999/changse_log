@@ -430,6 +430,13 @@ function getReadableBody(value?: unknown) {
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'");
 
+  // Unwrap code fences that contain HTML tags so they render as HTML
+  // instead of being displayed as code blocks.
+  body = body.replace(/```(?:html?)?\s*\n([\s\S]*?)```/g, (_match, content: string) => {
+    if (/<[a-zA-Z]/.test(content)) return content;
+    return _match;
+  });
+
   // Strip leading whitespace from every line so indented HTML
   // is not treated as a code block by the markdown parser.
   body = body.replace(/^[ \t]+/gm, "");
