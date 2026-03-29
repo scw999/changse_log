@@ -407,6 +407,29 @@ function normalizeActivityDetails(value: unknown): ArchiveRecord["activity"] {
   };
 }
 
+function normalizeStringArray(value: unknown) {
+  if (Array.isArray(value)) {
+    return value
+      .filter((item): item is string => typeof item === "string")
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+
+  if (typeof value === "string") {
+    return value
+      .split(/[,\n]/)
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+
+  return [] as string[];
+}
+
+function normalizeOptionalStringArray(value: unknown) {
+  const normalized = normalizeStringArray(value);
+  return normalized.length > 0 ? normalized : undefined;
+}
+
 export async function hydrateImageUrls(client: SupabaseClient, rows: ImageRow[]) {
   if (rows.length === 0) {
     return [] as Array<{ recordId: string; image: ArchiveImage }>;

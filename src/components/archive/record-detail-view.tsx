@@ -192,18 +192,22 @@ export function RecordDetailView({
             </div>
             <div className="rounded-[24px] border border-stone-100 bg-white/80 px-5 py-5">
               <p className="text-xs uppercase tracking-[0.3em] text-stone-500">Body</p>
-              {readableBody ? (
-                isHtmlDocument(readableBody) ? (
+              {hasDisplayText(record.body) ? (
+                isHtmlDocument(record.body) ? (
                   <div className="mt-3 overflow-hidden rounded-2xl border border-stone-200 bg-white">
                     <iframe
                       title={`${record.title} HTML 본문`}
-                      srcDoc={buildEmbeddedHtmlDocument(readableBody, record.title)}
+                      srcDoc={buildEmbeddedHtmlDocument(record.body, record.title)}
                       sandbox="allow-popups allow-popups-to-escape-sandbox"
                       className="min-h-[70vh] w-full bg-white"
                     />
                   </div>
-                ) : (
+                ) : readableBody ? (
                   <BodyRenderer body={readableBody} />
+                ) : (
+                  <p className="mt-3 text-sm leading-8 text-stone-700">
+                    이 기록에 저장된 본문이 없습니다.
+                  </p>
                 )
               ) : (
                 <p className="mt-3 text-sm leading-8 text-stone-700">
@@ -525,6 +529,7 @@ function toDisplayText(value: unknown, fallback = "") {
 
 function buildEmbeddedHtmlDocument(rawHtml: string, title: string) {
   const extractedBody = extractHtmlBody(rawHtml);
+  const preservedHead = extractEmbeddedHead(rawHtml);
   const normalizedBody = normalizeEmbeddedHtml(extractedBody);
   const escapedTitle = escapeHtml(title);
 
@@ -534,6 +539,7 @@ function buildEmbeddedHtmlDocument(rawHtml: string, title: string) {
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>${escapedTitle}</title>
+    ${preservedHead}
     <style>
       :root {
         color-scheme: light;
@@ -593,6 +599,21 @@ function extractHtmlBody(rawHtml: string) {
 
   const bodyMatch = trimmed.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
   return bodyMatch?.[1] ?? trimmed;
+}
+
+function extractEmbeddedHead(rawHtml: string) {
+  const trimmed = rawHtml.trim();
+  if (!trimmed) {
+    return "";
+  }
+
+  const headMatch = trimmed.match(/<head[^>]*>([\s\S]*?)<\/head>/i);
+  const head = headMatch?.[1] ?? "";
+
+  return head
+    .replace(/<script[\s\S]*?<\/script>/gi, "")
+    .replace(/<noscript[\s\S]*?<\/noscript>/gi, "")
+    .match(/<(base|link|style|meta)[^>]*?(?:>[\s\S]*?<\/style>|\/?>)/gi)?.join("\n") ?? "";
 }
 
 function normalizeEmbeddedHtml(html: string) {

@@ -150,11 +150,7 @@ export function getSearchableText(record: ArchiveRecord) {
     record.word?.example,
     record.content?.titleOriginal,
     record.content?.oneLineReview,
-    Array.isArray(record.content?.memorablePoints)
-      ? record.content.memorablePoints.join(" ")
-      : typeof record.content?.memorablePoints === "string"
-        ? record.content.memorablePoints
-        : undefined,
+    joinUnknownList(record.content?.memorablePoints),
     record.place?.placeName,
     record.place?.area,
     record.place?.oneLineReview,
@@ -170,6 +166,18 @@ export function getSearchableText(record: ArchiveRecord) {
 
 export function normalizeTags(tags: string[]) {
   return [...new Set(tags.map((tag) => tag.trim()).filter(Boolean))];
+}
+
+function joinUnknownList(value: unknown) {
+  if (Array.isArray(value)) {
+    return value
+      .filter((item): item is string => typeof item === "string")
+      .map((item) => item.trim())
+      .filter(Boolean)
+      .join(" ");
+  }
+
+  return typeof value === "string" ? value.trim() : "";
 }
 
 export function sortRecords(records: ArchiveRecord[], sort: SortOption) {
