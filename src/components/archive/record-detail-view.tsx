@@ -252,6 +252,7 @@ export function RecordDetailView({
                     fill
                     className="object-cover"
                     sizes="(max-width: 768px) 100vw, 33vw"
+                    unoptimized
                     onError={() => handleImageError(image.id)}
                   />
                   {image.isPrimary ? (
@@ -764,6 +765,7 @@ function ImageLightbox({
               fill
               className="object-contain"
               sizes="100vw"
+              unoptimized
             />
           </div>
 
