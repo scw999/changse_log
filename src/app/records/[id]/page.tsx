@@ -6,6 +6,9 @@ import { RecordDetailView } from "@/components/archive/record-detail-view";
 import { getServerArchiveRecordDetail } from "@/lib/archive/server-records";
 import { isSupabaseAdminConfigured } from "@/lib/supabase/env";
 
+// Signed image URLs expire — never cache this page.
+export const dynamic = "force-dynamic";
+
 export default async function RecordDetailPage({
   params,
   searchParams,

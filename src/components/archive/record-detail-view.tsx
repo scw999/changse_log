@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
   CalendarDays,
@@ -44,6 +44,14 @@ export function RecordDetailView({
   );
   const readableBody = useMemo(() => getReadableBody(record?.body), [record?.body]);
   const [activeImageIndex, setActiveImageIndex] = useState<number | null>(null);
+  const [failedImageIds, setFailedImageIds] = useState<Set<string>>(new Set());
+  const visibleImages = useMemo(
+    () => images.filter((img) => !failedImageIds.has(img.id)),
+    [images, failedImageIds],
+  );
+  const handleImageError = useCallback((imageId: string) => {
+    setFailedImageIds((prev) => new Set(prev).add(imageId));
+  }, []);
 
   useEffect(() => {
     let ignore = false;
@@ -80,20 +88,20 @@ export function RecordDetailView({
 
       if (event.key === "ArrowLeft") {
         setActiveImageIndex((current) =>
-          current === null ? current : (current - 1 + images.length) % images.length,
+          current === null ? current : (current - 1 + visibleImages.length) % visibleImages.length,
         );
       }
 
       if (event.key === "ArrowRight") {
         setActiveImageIndex((current) =>
-          current === null ? current : (current + 1) % images.length,
+          current === null ? current : (current + 1) % visibleImages.length,
         );
       }
     }
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [activeImageIndex, images.length]);
+  }, [activeImageIndex, visibleImages.length]);
 
   if (!isReady && !record) {
     return (
@@ -227,10 +235,10 @@ export function RecordDetailView({
         </SectionCard>
       </div>
 
-      {images.length > 0 ? (
+      {visibleImages.length > 0 ? (
         <SectionCard title="이미지" description="이 기록에 첨부된 사진과 스크린샷입니다.">
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {images.map((image, index) => (
+            {visibleImages.map((image, index) => (
               <button
                 key={image.id}
                 type="button"
@@ -244,6 +252,7 @@ export function RecordDetailView({
                     fill
                     className="object-cover"
                     sizes="(max-width: 768px) 100vw, 33vw"
+                    onError={() => handleImageError(image.id)}
                   />
                   {image.isPrimary ? (
                     <span className="absolute left-3 top-3 rounded-full bg-black/70 px-2.5 py-1 text-[11px] text-white">
@@ -343,17 +352,17 @@ export function RecordDetailView({
       ) : null}
 
       <ImageLightbox
-        images={images}
+        images={visibleImages}
         activeIndex={activeImageIndex}
         onClose={() => setActiveImageIndex(null)}
         onPrev={() =>
           setActiveImageIndex((current) =>
-            current === null ? current : (current - 1 + images.length) % images.length,
+            current === null ? current : (current - 1 + visibleImages.length) % visibleImages.length,
           )
         }
         onNext={() =>
           setActiveImageIndex((current) =>
-            current === null ? current : (current + 1) % images.length,
+            current === null ? current : (current + 1) % visibleImages.length,
           )
         }
       />
