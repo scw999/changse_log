@@ -313,13 +313,15 @@ export function ArchiveProvider({
           ),
         );
       },
-      removeImage: async (recordId, imageId) => {
+      removeImage: async (recordId, imageId, imageHint?) => {
         if (!user || !isSupabaseConfigured()) {
           throw new Error("이미지 삭제는 로그인된 Supabase 모드에서만 사용할 수 있습니다.");
         }
 
         const targetRecord = records.find((record) => record.id === recordId);
-        const targetImage = targetRecord?.images?.find((image) => image.id === imageId);
+        const targetImage =
+          imageHint ??
+          targetRecord?.images?.find((image) => image.id === imageId);
 
         if (!targetImage) {
           return;

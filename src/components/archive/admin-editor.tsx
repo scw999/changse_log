@@ -110,6 +110,12 @@ export function AdminEditor() {
       };
 
       await upsertRecord(next);
+
+      const nextImages = next.images ?? [];
+      if (isRemote && nextImages.length > 0) {
+        await updateImages(next.id, normalizeImages(nextImages));
+      }
+
       setSelectedId(next.id);
       setDraft(cloneRecord(next));
       setMessage(isRemote ? "Supabase에 기록을 저장했습니다." : "로컬 저장소에 기록을 저장했습니다.");
@@ -176,8 +182,13 @@ export function AdminEditor() {
       return;
     }
 
+    const targetImage = (draft.images ?? []).find((image) => image.id === imageId);
+    if (!targetImage) {
+      return;
+    }
+
     try {
-      await removeImage(draft.id, imageId);
+      await removeImage(draft.id, imageId, targetImage);
       setDraft((current) => ({
         ...current,
         images: (current.images ?? []).filter((image) => image.id !== imageId),
