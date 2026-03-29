@@ -489,6 +489,7 @@ export function AdminEditor() {
                           fill
                           className="object-cover"
                           sizes="(max-width: 768px) 100vw, 50vw"
+                          unoptimized
                         />
                         {image.isPrimary ? (
                           <span className="absolute left-3 top-3 rounded-full bg-black/70 px-2.5 py-1 text-[11px] text-white">

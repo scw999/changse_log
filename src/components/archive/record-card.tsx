@@ -21,6 +21,9 @@ import {
   toFiniteNumber,
 } from "@/lib/archive/utils";
 
+/** Use native <img> for signed Supabase URLs to avoid Vercel image optimizer re-fetching. */
+const USE_UNOPTIMIZED_IMAGES = true;
+
 interface RecordCardProps {
   record: ArchiveRecord;
   compact?: boolean;
@@ -71,6 +74,7 @@ export function RecordCard({ record, compact = false }: Readonly<RecordCardProps
                 fill
                 className="object-cover transition duration-300 group-hover:scale-[1.02]"
                 sizes={compact ? "(max-width: 1280px) 100vw, 50vw" : "(max-width: 1280px) 100vw, 40vw"}
+                unoptimized={USE_UNOPTIMIZED_IMAGES}
                 onError={() => setImgError(true)}
               />
             </div>
