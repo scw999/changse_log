@@ -137,7 +137,7 @@ export interface ArchiveContextValue {
   resetRecords: () => Promise<void>;
   uploadImages: (recordId: string, files: File[]) => Promise<ArchiveImage[]>;
   updateImages: (recordId: string, images: ArchiveImage[]) => Promise<void>;
-  removeImage: (recordId: string, imageId: string) => Promise<void>;
+  removeImage: (recordId: string, imageId: string, imageHint?: ArchiveImage) => Promise<void>;
   getRecordDetail: (recordId: string) => Promise<ArchiveRecord | null>;
   signOut: () => Promise<void>;
 }
