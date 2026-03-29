@@ -414,7 +414,7 @@ export async function hydrateImageUrls(client: SupabaseClient, rows: ImageRow[])
 
   const { data, error } = await client.storage
     .from(BUCKET)
-    .createSignedUrls(rows.map((row) => row.storage_path), 60 * 60);
+    .createSignedUrls(rows.map((row) => row.storage_path), 60 * 60 * 24);
 
   if (error) {
     throw error;

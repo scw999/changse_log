@@ -8,7 +8,7 @@ import { isAllowedAdminEmail } from "@/lib/supabase/env";
 
 const RECORDS_TABLE = "archive_records";
 const IMAGES_TABLE = "archive_record_images";
-const IMAGE_URL_TTL = 60 * 60;
+const IMAGE_URL_TTL = 60 * 60 * 24;
 const DEFAULT_PAGE_LIMIT = 50;
 
 export async function getServerArchiveRecords(viewerEmail?: string | null) {

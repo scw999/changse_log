@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { ArrowUpRight, CalendarDays, MapPin, Repeat2, Tags } from "lucide-react";
 
 import { RatingStars } from "@/components/ui/rating-stars";
@@ -32,6 +33,7 @@ export function RecordCard({ record, compact = false }: Readonly<RecordCardProps
   const location = getRecordLocationLabel(record);
   const headline = getTypeSpecificHeadline(record);
   const thumbnail = getRepresentativeImage(record);
+  const [imgError, setImgError] = useState(false);
 
   function openRecord() {
     router.push(`/records/${record.id}`);
@@ -60,7 +62,7 @@ export function RecordCard({ record, compact = false }: Readonly<RecordCardProps
         )}
       />
       <div className="relative">
-        {thumbnail?.url ? (
+        {thumbnail?.url && !imgError ? (
           <div className="mb-4 overflow-hidden rounded-[24px] border border-white/70 bg-stone-100">
             <div className={cx("relative", compact ? "aspect-[16/9]" : "aspect-[5/3]")}>
               <Image
@@ -69,6 +71,7 @@ export function RecordCard({ record, compact = false }: Readonly<RecordCardProps
                 fill
                 className="object-cover transition duration-300 group-hover:scale-[1.02]"
                 sizes={compact ? "(max-width: 1280px) 100vw, 50vw" : "(max-width: 1280px) 100vw, 40vw"}
+                onError={() => setImgError(true)}
               />
             </div>
           </div>
