@@ -14,7 +14,6 @@ import {
   Tags,
   X,
 } from "lucide-react";
-import { marked } from "marked";
 
 import { PageHeader } from "@/components/ui/page-header";
 import { RatingStars } from "@/components/ui/rating-stars";
@@ -194,7 +193,18 @@ export function RecordDetailView({
             <div className="rounded-[24px] border border-stone-100 bg-white/80 px-5 py-5">
               <p className="text-xs uppercase tracking-[0.3em] text-stone-500">Body</p>
               {readableBody ? (
-                <BodyRenderer body={readableBody} />
+                isHtmlDocument(readableBody) ? (
+                  <div className="mt-3 overflow-hidden rounded-2xl border border-stone-200 bg-white">
+                    <iframe
+                      title={`${record.title} HTML 본문`}
+                      srcDoc={buildEmbeddedHtmlDocument(readableBody, record.title)}
+                      sandbox="allow-popups allow-popups-to-escape-sandbox"
+                      className="min-h-[70vh] w-full bg-white"
+                    />
+                  </div>
+                ) : (
+                  <BodyRenderer body={readableBody} />
+                )
               ) : (
                 <p className="mt-3 text-sm leading-8 text-stone-700">
                   이 기록에 저장된 본문이 없습니다.
@@ -277,13 +287,13 @@ export function RecordDetailView({
         <SectionCard title="콘텐츠 상세" description="콘텐츠에 남긴 반응과 평점입니다.">
           <DetailGrid
             items={[
-              ["콘텐츠 유형", record.content.contentType],
-              ["원제", record.content.titleOriginal || "-"],
-              ["한 줄 리뷰", record.content.oneLineReview],
+              ["콘텐츠 유형", toDisplayText(record.content.contentType)],
+              ["원제", toDisplayText(record.content.titleOriginal)],
+              ["한 줄 리뷰", toDisplayText(record.content.oneLineReview)],
               ["기억에 남은 점", formatListValue(record.content.memorablePoints)],
               ["아쉬운 점", formatListValue(record.content.weakPoints)],
-              ["기억에 남는 문장", record.content.memorableQuote || "-"],
-              ["다시 보기 의도", record.content.revisitIntent],
+              ["기억에 남는 문장", toDisplayText(record.content.memorableQuote)],
+              ["다시 보기 의도", toDisplayText(record.content.revisitIntent)],
             ]}
           />
         </SectionCard>
@@ -365,7 +375,6 @@ function hasFullRecordDetail(record: ArchiveRecord | null) {
 }
 
 function isRichHtml(text: string) {
-  // Detect content that is already structured HTML (has block-level tags or <style>)
   return /<(div|section|article|header|footer|nav|style|table|figure|aside|main)\b/i.test(text);
 }
 
@@ -373,13 +382,8 @@ function BodyRenderer({ body }: Readonly<{ body: string }>) {
   const rich = isRichHtml(body);
 
   const html = useMemo(() => {
-    // If the body is already rich HTML, skip markdown parsing to preserve structure
-    const raw = rich
-      ? body
-      : (marked.parse(body, { async: false, breaks: true }) as string);
+    const raw = rich ? body : convertPlainTextToHtml(body);
 
-    // Sanitize: remove dangerous elements & event-handler attributes
-    // but keep <style> so custom CSS is preserved.
     if (typeof window !== "undefined") {
       const parser = new DOMParser();
       const doc = parser.parseFromString(raw, "text/html");
@@ -393,13 +397,8 @@ function BodyRenderer({ body }: Readonly<{ body: string }>) {
         }
       });
 
-      // Scope <style> blocks: wrap every rule with .body-rendered so
-      // the CSS does not leak out to the rest of the page.
-      // DOMParser moves <style> to <head>, so we must move them back to
-      // <body> after scoping so they are included in body.innerHTML.
       doc.querySelectorAll("style").forEach((style) => {
         style.textContent = (style.textContent ?? "").replace(
-          // Replace top-level selectors (skip @-rules content)
           /([^{}@]+)\{/g,
           (_m, selectors: string) => {
             const scoped = selectors
@@ -407,7 +406,6 @@ function BodyRenderer({ body }: Readonly<{ body: string }>) {
               .map((s: string) => {
                 const trimmed = s.trim();
                 if (!trimmed) return s;
-                // Replace body/html/:root/* selectors with scoped container
                 if (/^(body|html|\*|:root)$/i.test(trimmed)) return `.body-rendered`;
                 return `.body-rendered ${trimmed}`;
               })
@@ -415,11 +413,9 @@ function BodyRenderer({ body }: Readonly<{ body: string }>) {
             return `${scoped}{`;
           },
         );
-        // Move scoped <style> into <body> so it's included in innerHTML
         doc.body?.prepend(style);
       });
 
-      // Preserve <link rel="stylesheet"> (e.g. Google Fonts) from <head>
       doc.querySelectorAll('link[rel="stylesheet"]').forEach((link) => {
         doc.body?.prepend(link);
       });
@@ -427,11 +423,9 @@ function BodyRenderer({ body }: Readonly<{ body: string }>) {
       return doc.body?.innerHTML ?? "";
     }
 
-    // Server fallback: strip script tags (keep style for CSS)
     return raw.replace(/<script[\s\S]*?<\/script>/gi, "");
   }, [body, rich]);
 
-  // For rich HTML with its own CSS, skip prose-record to avoid style conflicts
   return (
     <div
       className={rich ? "body-rendered mt-3" : "body-rendered prose-record mt-3"}
@@ -458,11 +452,9 @@ function getReadableBody(value?: unknown) {
       const parser = new DOMParser();
       const doc = parser.parseFromString(body, "text/html");
       doc.querySelectorAll("script, noscript").forEach((node) => node.remove());
-      // Preserve <style> from <head> so CSS is available in the rendered body
       const styles = Array.from(doc.querySelectorAll("style"))
         .map((s) => s.outerHTML)
         .join("\n");
-      // Preserve <link> tags (e.g. Google Fonts) from <head>
       const links = Array.from(doc.querySelectorAll('link[rel="stylesheet"]'))
         .map((l) => l.outerHTML)
         .join("\n");
@@ -471,7 +463,6 @@ function getReadableBody(value?: unknown) {
       const preserved = [links, styles].filter(Boolean).join("\n");
       body = preserved ? `${preserved}\n${inner}` : inner;
     } else {
-      // Extract <style> blocks before stripping the wrapper
       const styleBlocks: string[] = [];
       body.replace(/<style[\s\S]*?<\/style>/gi, (m) => {
         styleBlocks.push(m);
@@ -490,7 +481,6 @@ function getReadableBody(value?: unknown) {
     }
   }
 
-  // Decode common HTML entities so markup isn't displayed as text
   body = body
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
@@ -498,15 +488,11 @@ function getReadableBody(value?: unknown) {
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'");
 
-  // Unwrap code fences that contain HTML tags so they render as HTML
-  // instead of being displayed as code blocks.
   body = body.replace(/```(?:html?)?\s*\n([\s\S]*?)```/g, (_match, content: string) => {
     if (/<[a-zA-Z]/.test(content)) return content;
     return _match;
   });
 
-  // Strip leading whitespace from every line so indented HTML
-  // is not treated as a code block by the markdown parser.
   body = body.replace(/^[ \t]+/gm, "");
 
   return body;
@@ -514,6 +500,14 @@ function getReadableBody(value?: unknown) {
 
 function hasDisplayText(value: unknown) {
   return typeof value === "string" && value.trim().length > 0;
+}
+
+function convertPlainTextToHtml(text: string) {
+  return escapeHtml(text)
+    .replace(/\n{2,}/g, "</p><p>")
+    .replace(/\n/g, "<br />")
+    .replace(/^/, "<p>")
+    .replace(/$/, "</p>");
 }
 
 function toDisplayText(value: unknown, fallback = "") {
@@ -529,14 +523,115 @@ function toDisplayText(value: unknown, fallback = "") {
   return fallback;
 }
 
+function buildEmbeddedHtmlDocument(rawHtml: string, title: string) {
+  const extractedBody = extractHtmlBody(rawHtml);
+  const normalizedBody = normalizeEmbeddedHtml(extractedBody);
+  const escapedTitle = escapeHtml(title);
+
+  return `<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>${escapedTitle}</title>
+    <style>
+      :root {
+        color-scheme: light;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html, body {
+        margin: 0;
+        padding: 0;
+        background: #ffffff;
+        color: #1c1917;
+        font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Apple SD Gothic Neo", "Pretendard", "Noto Sans KR", sans-serif;
+        line-height: 1.7;
+      }
+
+      body {
+        padding: 20px;
+        word-break: break-word;
+      }
+
+      img, picture, video, canvas, svg, iframe {
+        max-width: 100% !important;
+        height: auto !important;
+      }
+
+      table {
+        width: 100% !important;
+        border-collapse: collapse;
+        display: block;
+        overflow-x: auto;
+      }
+
+      pre, code {
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+
+      a {
+        color: #2563eb;
+      }
+    </style>
+  </head>
+  <body>
+    ${normalizedBody}
+  </body>
+</html>`;
+}
+
+function extractHtmlBody(rawHtml: string) {
+  const trimmed = rawHtml.trim();
+  if (!trimmed) {
+    return "<p>이 기록에 저장된 본문이 없습니다.</p>";
+  }
+
+  const bodyMatch = trimmed.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+  return bodyMatch?.[1] ?? trimmed;
+}
+
+function normalizeEmbeddedHtml(html: string) {
+  return html
+    .replace(/<script[\s\S]*?<\/script>/gi, "")
+    .replace(/<noscript[\s\S]*?<\/noscript>/gi, "")
+    .replace(/\s(src|href)=(["'])\/\//gi, ' $1=$2https://')
+    .replace(/<img([^>]*?)style=(["'])([\s\S]*?)\2([^>]*)>/gi, (_match, before, quote, styleValue, after) => {
+      const cleaned = styleValue
+        .replace(/max-width\s*:[^;]+;?/gi, "")
+        .replace(/width\s*:[^;]+;?/gi, "")
+        .replace(/height\s*:[^;]+;?/gi, "")
+        .trim();
+      const nextStyle = cleaned.length > 0 ? ` style=${quote}${cleaned}${quote}` : "";
+      return `<img${before}${nextStyle}${after}>`;
+    });
+}
+
+function escapeHtml(value: string) {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
 function formatListValue(value: unknown) {
   if (Array.isArray(value)) {
-    const items = value.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
-    return items.length > 0 ? items.join(", ") : "-";
+    const items = value
+      .filter((item): item is string => typeof item === "string")
+      .map((item) => item.trim())
+      .filter(Boolean);
+
+    return items.join(", ") || "-";
   }
 
   if (typeof value === "string") {
-    return value.trim().length > 0 ? value.trim() : "-";
+    return value.trim() || "-";
   }
 
   return "-";
