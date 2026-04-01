@@ -2,7 +2,12 @@ import { NextResponse } from "next/server";
 
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { isInternalIngestConfigured } from "@/lib/supabase/env";
-import { getOwnedArchiveRecord, isAuthorizedInternalRequest, serializeInternalError } from "@/lib/internal-auth";
+import {
+  getOwnedArchiveRecord,
+  isAuthorizedInternalRequest,
+  listOwnedRecordImages,
+  serializeInternalError,
+} from "@/lib/internal-auth";
 
 const BUCKET = "record-images";
 const IMAGES_TABLE = "archive_record_images";
@@ -134,6 +139,154 @@ export async function POST(
       { status: 400 },
     );
   }
+}
+
+type BulkImagePatch = {
+  id: string;
+  caption?: string;
+  altText?: string;
+};
+
+export async function PATCH(
+  request: Request,
+  context: Readonly<{ params: Promise<{ id: string }> }>,
+) {
+  if (!isInternalIngestConfigured()) {
+    return NextResponse.json({ error: "internal_ingest_not_configured" }, { status: 503 });
+  }
+
+  if (!isAuthorizedInternalRequest(request)) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
+
+  try {
+    const { id } = await context.params;
+    const { ownerId, record } = await getOwnedArchiveRecord(id);
+
+    if (!record) {
+      return NextResponse.json({ error: "record_not_found" }, { status: 404 });
+    }
+
+    const body = (await request.json()) as Record<string, unknown>;
+    const patches = parseBulkPatches(body);
+
+    if (patches.length === 0) {
+      return NextResponse.json({ error: "images array must not be empty" }, { status: 400 });
+    }
+
+    const { images: existingImages } = await listOwnedRecordImages(id);
+    const existingIds = new Set(existingImages.map((img) => img.id));
+    const unknownIds = patches.filter((p) => !existingIds.has(p.id)).map((p) => p.id);
+
+    if (unknownIds.length > 0) {
+      return NextResponse.json(
+        { error: "image_not_found", unknownIds },
+        { status: 404 },
+      );
+    }
+
+    const admin = createSupabaseAdminClient();
+
+    const updateResults = await Promise.all(
+      patches.map((patch) => {
+        const existing = existingImages.find((img) => img.id === patch.id)!;
+        const updatePayload: Record<string, string> = {};
+
+        if (patch.caption !== undefined) {
+          updatePayload.caption = patch.caption;
+        } else {
+          updatePayload.caption = existing.caption ?? "";
+        }
+
+        if (patch.altText !== undefined) {
+          updatePayload.alt_text = patch.altText;
+        } else {
+          updatePayload.alt_text = existing.alt_text ?? "";
+        }
+
+        return admin
+          .from(IMAGES_TABLE)
+          .update(updatePayload)
+          .eq("id", patch.id)
+          .eq("record_id", id)
+          .eq("owner_id", ownerId);
+      }),
+    );
+
+    const firstError = updateResults.find((r) => r.error);
+    if (firstError?.error) {
+      throw firstError.error;
+    }
+
+    const updated = patches.map((patch) => {
+      const existing = existingImages.find((img) => img.id === patch.id)!;
+      return {
+        id: patch.id,
+        caption: patch.caption ?? existing.caption ?? "",
+        altText: patch.altText ?? existing.alt_text ?? "",
+      };
+    });
+
+    return NextResponse.json({
+      ok: true,
+      updated,
+      count: updated.length,
+    });
+  } catch (error) {
+    const details = serializeInternalError(error);
+    console.error("internal bulk image update failed", details);
+
+    return NextResponse.json(
+      {
+        error: error instanceof Error ? error.message : "internal_bulk_image_update_failed",
+        details,
+      },
+      { status: 400 },
+    );
+  }
+}
+
+function parseBulkPatches(input: Record<string, unknown>): BulkImagePatch[] {
+  const rawImages = input.images;
+
+  if (!Array.isArray(rawImages)) {
+    throw new Error("images must be an array");
+  }
+
+  return rawImages.map((item, index) => {
+    if (!item || typeof item !== "object" || Array.isArray(item)) {
+      throw new Error(`images[${index}] must be an object`);
+    }
+
+    const entry = item as Record<string, unknown>;
+
+    if (typeof entry.id !== "string" || entry.id.trim().length === 0) {
+      throw new Error(`images[${index}].id is required`);
+    }
+
+    const patch: BulkImagePatch = { id: entry.id.trim() };
+
+    if ("caption" in entry) {
+      if (entry.caption !== null && typeof entry.caption !== "string") {
+        throw new Error(`images[${index}].caption must be a string or null`);
+      }
+      patch.caption = typeof entry.caption === "string" ? entry.caption : "";
+    }
+
+    if ("altText" in entry || "alt_text" in entry) {
+      const val = entry.altText ?? entry.alt_text;
+      if (val !== null && val !== undefined && typeof val !== "string") {
+        throw new Error(`images[${index}].altText must be a string or null`);
+      }
+      patch.altText = typeof val === "string" ? val : "";
+    }
+
+    if (patch.caption === undefined && patch.altText === undefined) {
+      throw new Error(`images[${index}] must include at least caption or altText`);
+    }
+
+    return patch;
+  });
 }
 
 function toOptionalString(value: FormDataEntryValue | null) {
