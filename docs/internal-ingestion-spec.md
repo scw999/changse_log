@@ -133,6 +133,46 @@ Expected effect:
 - gallery order stays the same
 - the chosen image becomes the representative thumbnail
 
+## Bulk Patch Image Captions
+
+- `PATCH /api/internal/archive-records/[id]/images`
+
+Update captions and alt text for multiple images at once.
+
+Each item in the `images` array must include `id` and at least one of `caption` or `altText`.
+Fields not included in a given item keep their existing value.
+
+Example:
+
+```json
+{
+  "images": [
+    { "id": "uuid-1", "caption": "한강 야경" },
+    { "id": "uuid-2", "caption": "자전거 타는 모습", "altText": "자전거" },
+    { "id": "uuid-3", "caption": "다리 위에서" }
+  ]
+}
+```
+
+Response:
+
+```json
+{
+  "ok": true,
+  "updated": [
+    { "id": "uuid-1", "caption": "한강 야경", "altText": "" },
+    { "id": "uuid-2", "caption": "자전거 타는 모습", "altText": "자전거" },
+    { "id": "uuid-3", "caption": "다리 위에서", "altText": "" }
+  ],
+  "count": 3
+}
+```
+
+Notes:
+
+- All image IDs must belong to the given record; if any ID is unknown the request returns `404` with `unknownIds`
+- `alt_text` and `altText` are both accepted as field names
+
 ## Status Codes
 
 - `200`: success
