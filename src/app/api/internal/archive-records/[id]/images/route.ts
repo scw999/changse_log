@@ -20,6 +20,75 @@ const ALLOWED_MIME_TYPES = new Set([
   "image/heif",
 ]);
 
+export async function GET(
+  request: Request,
+  context: Readonly<{ params: Promise<{ id: string }> }>,
+) {
+  if (!isInternalIngestConfigured()) {
+    return NextResponse.json({ error: "internal_ingest_not_configured" }, { status: 503 });
+  }
+
+  if (!isAuthorizedInternalRequest(request)) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
+
+  try {
+    const { id } = await context.params;
+    const { record } = await getOwnedArchiveRecord(id);
+
+    if (!record) {
+      return NextResponse.json({ error: "record_not_found" }, { status: 404 });
+    }
+
+    const { images } = await listOwnedRecordImages(id);
+
+    const admin = createSupabaseAdminClient();
+    const storagePaths = images.map((img) => img.storage_path);
+    let signedUrls: Array<{ signedUrl: string }> = [];
+
+    if (storagePaths.length > 0) {
+      const { data, error } = await admin.storage
+        .from(BUCKET)
+        .createSignedUrls(storagePaths, 60 * 60);
+
+      if (error) {
+        throw error;
+      }
+
+      signedUrls = data ?? [];
+    }
+
+    const result = images.map((img, index) => ({
+      id: img.id,
+      recordId: img.record_id,
+      url: signedUrls[index]?.signedUrl ?? "",
+      storagePath: img.storage_path,
+      caption: img.caption ?? "",
+      altText: img.alt_text ?? "",
+      sortOrder: img.sort_order,
+      isPrimary: img.is_primary,
+      createdAt: img.created_at,
+    }));
+
+    return NextResponse.json({
+      ok: true,
+      images: result,
+      count: result.length,
+    });
+  } catch (error) {
+    const details = serializeInternalError(error);
+    console.error("internal image list failed", details);
+
+    return NextResponse.json(
+      {
+        error: error instanceof Error ? error.message : "internal_image_list_failed",
+        details,
+      },
+      { status: 400 },
+    );
+  }
+}
+
 export async function POST(
   request: Request,
   context: Readonly<{ params: Promise<{ id: string }> }>,
