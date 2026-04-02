@@ -88,6 +88,36 @@ Behavior:
 3. remove image metadata rows
 4. remove the record row
 
+## List Record Images
+
+- `GET /api/internal/archive-records/[id]/images`
+
+Returns all images for a record with signed URLs, captions, and IDs.
+
+Response:
+
+```json
+{
+  "ok": true,
+  "images": [
+    {
+      "id": "uuid-1",
+      "recordId": "record-uuid",
+      "url": "https://...signed-url...",
+      "storagePath": "owner/record/file.jpg",
+      "caption": "기존 캡션",
+      "altText": "",
+      "sortOrder": 0,
+      "isPrimary": true,
+      "createdAt": "2025-01-01T00:00:00Z"
+    }
+  ],
+  "count": 1
+}
+```
+
+Use this to get image IDs before calling bulk patch.
+
 ## Attach Image
 
 - `POST /api/internal/archive-records/[id]/images`
