@@ -15,6 +15,8 @@ import {
   X,
 } from "lucide-react";
 
+import { Marked } from "marked";
+
 import { PageHeader } from "@/components/ui/page-header";
 import { RatingStars } from "@/components/ui/rating-stars";
 import { SectionCard } from "@/components/ui/section-card";
@@ -442,7 +444,7 @@ function BodyRenderer({ body }: Readonly<{ body: string }>) {
 
   return (
     <div
-      className={rich ? "body-rendered mt-3" : "body-rendered prose-record mt-3"}
+      className="body-rendered prose-record mt-3"
       dangerouslySetInnerHTML={{ __html: html }}
     />
   );
@@ -516,7 +518,12 @@ function hasDisplayText(value: unknown) {
   return typeof value === "string" && value.trim().length > 0;
 }
 
+const gfmMarked = new Marked({ gfm: true, breaks: true });
+
 function convertPlainTextToHtml(text: string) {
+  const result = gfmMarked.parse(text);
+  if (typeof result === "string") return result;
+  // Fallback for unexpected promise return (synchronous mode should always return string)
   return escapeHtml(text)
     .replace(/\n{2,}/g, "</p><p>")
     .replace(/\n/g, "<br />")

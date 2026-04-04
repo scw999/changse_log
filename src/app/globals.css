@@ -196,3 +196,30 @@ a {
   border-radius: 12px;
   margin: 1em 0;
 }
+
+/* ── body-rendered: ensure tables render properly even outside prose-record ── */
+.body-rendered table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1em 0;
+  font-size: 0.8125rem;
+  display: table;
+  overflow-x: auto;
+}
+
+.body-rendered th,
+.body-rendered td {
+  border: 1px solid rgba(101, 83, 66, 0.15);
+  padding: 0.5em 0.75em;
+  text-align: left;
+}
+
+.body-rendered th {
+  background: rgba(101, 83, 66, 0.06);
+  font-weight: 600;
+}
+
+.body-rendered table:has(th, td) {
+  border-radius: 8px;
+  overflow: hidden;
+}
